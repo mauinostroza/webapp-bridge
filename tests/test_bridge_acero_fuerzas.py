@@ -8,6 +8,8 @@ El orden del código de retorno se prueba con el doble de tests/test_bridge_esbe
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -18,6 +20,7 @@ from bridge.acero_aisc360_fuerzas import (
     VALIDADO_FECHA,
     SapAceroFuerzasError,
     _avisar_filas,
+    _filas_barra,
     _valor_unico,
     cb_f1,
     leer_fuerzas,
@@ -93,8 +96,10 @@ class _Results:
         escala = outer.escala_longitud()
         n = len(filas)
         z = (0.0,) * n
+        if outer.salidas_cortas:
+            return (0, None, ())
         return (
-            n,
+            n if outer.n_forzado == "auto" else outer.n_forzado,
             (barra,) * n,
             tuple(f[1] * escala for _, f in filas),
             ("",) * n,
@@ -165,7 +170,11 @@ class FakeAcero:
         firma_larga: bool = False,
         corta_falla: bool = False,
         ignora_seleccion: bool = False,
+        n_forzado: Any = "auto",
+        salidas_cortas: bool = False,
     ):
+        self.n_forzado = n_forzado  # sustituye n en la respuesta de FrameForce
+        self.salidas_cortas = salidas_cortas
         # Por defecto kip-ft (distinto de kN-m) para probar la restauración; 12 = Ton_m_C.
         self.units = unidades
         self.tupla_unidades = tupla_unidades
@@ -579,3 +588,33 @@ def test_valor_unico_con_codigo_de_error_o_varios_datos_falla():
         _valor_unico((5, 12), "GetX")  # código distinto de cero
     with pytest.raises(SapAceroFuerzasError):
         _valor_unico((0, 1, 2), "GetX")  # varios datos donde se esperaba uno
+
+
+# ---------------------------------------------------------------------------
+# FrameForce sin resultados o con forma inesperada
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("n", [None, 0])
+def test_frame_force_sin_resultados_avisa_y_no_lanza(n):
+    res = leer_fuerzas(FakeAcero(n_forzado=n), ["V1"], ["U1"])
+    assert any(
+        "Barra 'V1': SAP2000 no devolvió resultados (¿modelo analizado?" in w for w in res["warnings"]
+    )
+    assert res["frames"][0]["combinaciones"] == []
+
+
+def test_filas_barra_n_none_devuelve_cero_filas_con_aviso():
+    avisos: list[str] = []
+    assert _filas_barra(FakeAcero(n_forzado=None), "V1", {"U1"}, avisos) == ([], 0)
+    assert len(avisos) == 1
+
+
+def test_frame_force_con_pocas_salidas_da_error_con_tipos():
+    with pytest.raises(SapAceroFuerzasError, match=r"2 \(salidas: \[NoneType, tuple\]\)|salidas: \[NoneType"):
+        _filas_barra(FakeAcero(salidas_cortas=True), "V1", {"U1"})
+
+
+def test_frame_force_con_n_no_numerico_da_error():
+    with pytest.raises(SapAceroFuerzasError, match="no es numérico"):
+        _filas_barra(FakeAcero(n_forzado="abc"), "V1", {"U1"})
