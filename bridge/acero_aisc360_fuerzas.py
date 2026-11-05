@@ -233,19 +233,40 @@ def _frame_force(model: Any, barra: str) -> Any:
             ) from larga
 
 
-def _filas_barra(model: Any, barra: str, combos: set[str]) -> tuple[list[dict[str, Any]], int]:
+def _tipos(salidas: list[Any]) -> str:
+    return "[" + ", ".join(type(s).__name__ for s in salidas) + "]"
+
+
+def _filas_barra(
+    model: Any, barra: str, combos: set[str], advertencias: list[str] | None = None
+) -> tuple[list[dict[str, Any]], int]:
     """Filas de ``Results.FrameForce`` de una barra (kN, kN·m, m; ya en kN-m).
 
     Devuelve también cuántas filas de casos o combinaciones no pedidos trajo SAP2000 (se descartan).
+    Si SAP2000 devuelve ``n`` ``None`` o 0 (sin resultados) no hay filas y se añade un aviso a
+    ``advertencias``; si la forma de la respuesta no es la esperada lanza ``SapAceroFuerzasError``.
     """
     # Orden de salidas (OAPI, comprobado con SAP2000 23.3.1): n, Obj, ObjSta, Elm, ElmSta, LoadCase,
     # StepType, StepNum, P, V2, V3, T, M2, M3; el código de retorno va al inicio con pywin32.
     salidas = _salidas(_frame_force(model, barra), f"Results.FrameForce('{barra}')")
     if len(salidas) < 14:
         raise SapAceroFuerzasError(
-            f"Results.FrameForce('{barra}') devolvió {len(salidas)} arreglos; se esperaban 14."
+            f"Results.FrameForce('{barra}') devolvió una respuesta con forma inesperada: se esperaban "
+            f"al menos 14 salidas y llegaron {len(salidas)} (salidas: {_tipos(salidas)})."
         )
     n, _obj, obj_sta, _elm, _elm_sta, caso, paso, _num, P, V2, V3, T, M2, M3 = salidas[:14]
+    if n is None or (isinstance(n, (int, float)) and not isinstance(n, bool) and n == 0):
+        if advertencias is not None:
+            advertencias.append(
+                f"Barra '{barra}': SAP2000 no devolvió resultados "
+                "(¿modelo analizado? ¿casos o combinaciones seleccionados para salida?)."
+            )
+        return [], 0
+    if isinstance(n, bool) or not isinstance(n, (int, float)):
+        raise SapAceroFuerzasError(
+            f"Results.FrameForce('{barra}') devolvió una respuesta con forma inesperada: el número de "
+            f"resultados no es numérico ({n!r}); {len(salidas)} salidas (salidas: {_tipos(salidas)})."
+        )
     filas: list[dict[str, Any]] = []
     descartadas = 0
     for i in range(int(n)):
@@ -555,7 +576,7 @@ def leer_fuerzas(
         _seleccionar_salida(model, solicitadas, combinaciones)
         leidas = []
         for barra in presentes:
-            filas, descartadas = _filas_barra(model, barra, set(solicitadas))
+            filas, descartadas = _filas_barra(model, barra, set(solicitadas), advertencias)
             _avisar_filas(barra, filas, descartadas, solicitadas, advertencias)
             leidas.append((barra, _seccion(model, barra), _longitud_m(model, barra, factor), filas))
     finally:
