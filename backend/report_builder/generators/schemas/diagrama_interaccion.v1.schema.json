@@ -1,0 +1,150 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "diagrama_interaccion v1",
+  "description": "Contrato del informe del programa \"Diagrama de interacción\" (endpoint POST /diagrama/reporte/bundle). Viaja en un ZIP junto a los PNG de los gráficos; cada imagenes[].ruta es relativa a la carpeta del JSON. El generador (generators/diagrama_interaccion.py) depende solo de este contrato.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["titulo", "unidades", "seccion", "armadura", "casos", "imagenes"],
+  "properties": {
+    "titulo": { "type": "string" },
+    "generado_en": { "type": "string" },
+    "norma": { "type": "string" },
+    "unidades": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fuerza", "momento"],
+      "properties": {
+        "fuerza": { "type": "string", "enum": ["tonf", "kN"] },
+        "momento": { "type": "string" },
+        "longitud": { "type": "string" },
+        "tension": { "type": "string" }
+      }
+    },
+    "seccion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tipo", "fc_mpa", "fy_mpa", "ag_mm2"],
+      "properties": {
+        "tipo": { "type": "string", "enum": ["rect", "circ"] },
+        "b_mm": { "type": "number" },
+        "d_mm": { "type": "number" },
+        "diametro_mm": { "type": "number" },
+        "recubrimiento_mm": { "type": "number" },
+        "tipo_columna": { "type": "string", "enum": ["tied", "spiral"] },
+        "fc_mpa": { "type": "number" },
+        "fy_mpa": { "type": "number" },
+        "ag_mm2": { "type": "number" }
+      }
+    },
+    "armadura": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["n_barras", "ast_mm2", "rho", "grupos"],
+      "properties": {
+        "n_barras": { "type": "integer" },
+        "ast_mm2": { "type": "number" },
+        "rho": { "type": "number" },
+        "grupos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["diametro_mm", "cantidad", "area_unitaria_mm2", "area_total_mm2"],
+            "properties": {
+              "diametro_mm": { "type": "number" },
+              "cantidad": { "type": "integer" },
+              "area_unitaria_mm2": { "type": "number" },
+              "area_total_mm2": { "type": "number" }
+            }
+          }
+        },
+        "transversal": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "diametro_estribo_mm": { "type": "number" },
+            "separacion_mm": { "type": "number" },
+            "fy_estribo_mpa": { "type": "number" },
+            "n_estribos": { "type": "integer" },
+            "n_trabas": { "type": "integer" }
+          }
+        }
+      }
+    },
+    "corte": {
+      "type": "object",
+      "description": "Diseno al corte ya calculado por el modulo. Fuerzas en unidades.fuerza; areas y dimensiones en mm.",
+      "properties": {
+        "av_x_mm2": { "type": "number" },
+        "av_y_mm2": { "type": "number" },
+        "bw_x_mm": { "type": "number" },
+        "bw_y_mm": { "type": "number" },
+        "d_x_mm": { "type": "number" },
+        "d_y_mm": { "type": "number" },
+        "notas": { "type": "array", "items": { "type": "string" } },
+        "gobernante": { "type": ["string", "null"] },
+        "ratio_max": { "type": ["number", "null"] },
+        "cumple": { "type": ["boolean", "null"] },
+        "casos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["nombre"],
+            "properties": {
+              "nombre": { "type": "string" },
+              "vu_x": { "type": "number" },
+              "phi_vn_x": { "type": "number" },
+              "ratio_x": { "type": "number" },
+              "vu_y": { "type": "number" },
+              "phi_vn_y": { "type": "number" },
+              "ratio_y": { "type": "number" },
+              "ratio_combinada": { "type": "number" },
+              "cumple": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "casos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["nombre", "n", "mx", "my", "utilizacion", "estado"],
+        "properties": {
+          "nombre": { "type": "string" },
+          "n": { "type": "number" },
+          "mx": { "type": "number" },
+          "my": { "type": "number" },
+          "utilizacion": { "type": ["number", "null"] },
+          "estado": { "type": "string", "enum": ["dentro", "fuera"] },
+          "gobernante": { "type": "boolean" }
+        }
+      }
+    },
+    "resultados": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "gobernante": { "type": ["string", "null"] },
+        "utilizacion_max": { "type": ["number", "null"] },
+        "n_casos": { "type": "integer" },
+        "n_fuera": { "type": "integer" }
+      }
+    },
+    "imagenes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ruta"],
+        "properties": {
+          "ruta": { "type": "string" },
+          "descripcion": { "type": "string" }
+        }
+      }
+    },
+    "notas": { "type": "array", "items": { "type": "string" } },
+    "advertencia": { "type": "string" }
+  }
+}

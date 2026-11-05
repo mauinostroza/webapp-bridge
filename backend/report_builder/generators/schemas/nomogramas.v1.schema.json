@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "nomogramas v1",
+  "description": "Contrato del informe del programa \"Nomogramas\" (factor de longitud efectiva K con diagramas de alineación, Dumonteil 1992). El JSON lo arma la página y lo sube al proyecto como nomogramas.json; no lleva imágenes. G infinito viaja como \"inf\"; nunca NaN ni Infinity. El generador (generators/nomogramas.py) depende solo de este contrato.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["titulo", "fecha", "columnas", "modo_estudio"],
+  "properties": {
+    "titulo": { "type": "string" },
+    "fecha": { "type": "string" },
+    "modo_estudio": { "type": "boolean" },
+    "columnas": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "etiqueta", "condicion_lateral", "ga", "gb", "k", "valido", "estado"],
+        "properties": {
+          "id": { "type": "string" },
+          "etiqueta": { "type": "string" },
+          "condicion_lateral": {
+            "type": "string",
+            "enum": ["Arriostrado", "No arriostrado", "Con factor α (solo estudio)"]
+          },
+          "alpha": { "type": ["number", "null"] },
+          "ga": { "type": ["number", "string", "null"] },
+          "gb": { "type": ["number", "string", "null"] },
+          "k": { "type": ["number", "null"] },
+          "valido": { "type": "boolean" },
+          "estado": { "type": "string", "enum": ["VALIDA", "SOLO ESTUDIO", "INVALIDA"] },
+          "causa": { "type": "string" },
+          "comentario": { "type": "string" }
+        }
+      }
+    },
+    "formulas": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "arriostrado": { "type": "string" },
+        "no_arriostrado": { "type": "string" },
+        "alpha": { "type": "string" },
+        "referencia": { "type": "string" }
+      }
+    },
+    "advertencias": { "type": "array", "items": { "type": "string" } }
+  }
+}

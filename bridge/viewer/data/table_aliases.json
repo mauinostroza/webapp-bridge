@@ -1,0 +1,99 @@
+{
+  "load_patterns": [
+    "Load Pattern Definitions",
+    "Load Patterns",
+    "Load Pattern Definitions - Auto Seismic User Coefficient",
+    "Load Pattern Definitions - Auto Wind"
+  ],
+  "load_cases": [
+    "Load Case Definitions - Summary",
+    "Load Case Definitions",
+    "Load Cases",
+    "Case Definitions"
+  ],
+  "load_combinations": [
+    "Combination Definitions",
+    "Load Combination Definitions",
+    "Response Combination Definitions",
+    "Load Combinations",
+    "Combo Definitions"
+  ],
+  "joint_coordinates": [
+    "Joint Coordinates",
+    "Point Coordinates",
+    "Objects and Elements - Joints",
+    "Joint Object Connectivity"
+  ],
+  "frame_geometry": [
+    "Connectivity - Frame",
+    "Frame Connectivity",
+    "Objects and Elements - Frames",
+    "Frame Object Connectivity",
+    "Frame Assignments - Summary"
+  ],
+  "frame_forces": [
+    "Element Forces - Frames",
+    "Frame Output Station Forces",
+    "Frame Forces",
+    "Analysis Results - Frame Forces",
+    "Object Forces - Frames"
+  ],
+  "joint_displacements": [
+    "Joint Displacements",
+    "Joint Displacements - Absolute",
+    "Analysis Results - Joint Displacements"
+  ],
+  "joint_reactions": [
+    "Joint Reactions",
+    "Base Reactions",
+    "Analysis Results - Joint Reactions"
+  ],
+  "joint_restraints": [
+    "Joint Restraint Assignments",
+    "Joint Restraints"
+  ],
+  "frame_releases": [
+    "Frame Release Assignments 1 - General",
+    "Frame Assignments - Releases",
+    "Frame Releases"
+  ],
+  "frame_loads_distributed": [
+    "Frame Loads - Distributed",
+    "Frame Loads Assignments - Distributed",
+    "Element Forces - Frame Distributed Loads"
+  ],
+  "frame_loads_point": [
+    "Frame Loads - Point",
+    "Frame Loads Assignments - Point"
+  ],
+  "joint_loads_force": [
+    "Joint Loads - Force",
+    "Joint Loads Assignments - Force",
+    "Joint Loads - Forces"
+  ],
+  "frame_assigned_section": [
+    "Frame Section Assignments",
+    "Frame Assignments - Sections",
+    "Frame Assignments - Section",
+    "Frame Properties - Assignments"
+  ],
+  "frame_section_properties": [
+    "Frame Section Properties 01 - General",
+    "Frame Section Property Definitions - Summary",
+    "Frame Sections",
+    "Frame Section Properties",
+    "Frame Section Property Definitions - General"
+  ],
+  "frame_local_axes": [
+    "Frame Local Axes Assignments 1 - Typical",
+    "Frame Local Axes Assignments 1 - General",
+    "Frame Assignments - Local Axes",
+    "Frame Local Axes"
+  ],
+  "area_connectivity": [
+    "Connectivity - Area",
+    "Area Connectivity",
+    "Objects and Elements - Areas",
+    "Area Object Connectivity"
+  ]
+}

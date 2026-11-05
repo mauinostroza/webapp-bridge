@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "project": {
+    "name": "Proyecto de prueba",
+    "docx_path": "Template_Example.docx"
+  },
+  "modules": [
+    {
+      "module_id": "placas_base",
+      "tag": "report:placas_base:seccion",
+      "enabled": true,
+      "source_json": "Casos_Test.json",
+      "json_schema_ref": "generators/schemas/placas_base.v1.schema.json",
+      "generator": "generators.placas_base:build",
+      "last_sync": null
+    }
+  ]
+}

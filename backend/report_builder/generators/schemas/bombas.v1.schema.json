@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "bombas v1",
+  "description": "Contrato del informe del módulo \"Vibración de bombas\" (fundación según Arya, O'Neill y Pincus, diagnóstico de vibración e ISO 10816-3), endpoint POST /bombas/reporte/bundle. Viaja en un ZIP como bombas.json junto a los PNG de los gráficos; cada imagenes[].ruta es relativa a la carpeta del JSON. Nunca lleva NaN ni Infinity (un valor no finito viaja como null). El generador (generators/bombas.py) depende solo de este contrato.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["titulo", "fecha", "entrada", "dinamico", "resumen", "sismico", "pernos", "vibracion", "imagenes"],
+  "properties": {
+    "titulo": { "type": "string" },
+    "fecha": { "type": "string" },
+    "entrada": {
+      "type": "object",
+      "required": ["f_rpm", "Wm", "sigma_adm"]
+    },
+    "dinamico": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["V", "H", "R"],
+      "properties": {
+        "V": { "$ref": "#/definitions/modo" },
+        "H": { "$ref": "#/definitions/modo" },
+        "R": { "$ref": "#/definitions/modo" }
+      }
+    },
+    "resumen": {
+      "type": "object",
+      "required": ["Wf", "Wp", "Wtot", "ratio_W", "ratio_W_check", "v_max", "v_max_check"]
+    },
+    "sismico": {
+      "type": "object",
+      "required": ["Cs", "Vs", "Ms", "FSD", "FSV", "sigma_max", "Ac_plus", "Ac_minus", "FSD_check"]
+    },
+    "pernos": {
+      "type": "object",
+      "required": ["Nua_max", "Vua_max", "phi_Nsa", "phi_Vsa", "interaction", "interaction_check", "material_name"]
+    },
+    "vibracion": {
+      "type": "object",
+      "required": ["f1x_hz", "vpf_hz", "bpfo_hz", "iso_zone", "iso_zone_check", "iso_AB", "iso_BC", "iso_CD", "diagnosis_text"]
+    },
+    "imagenes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ruta"],
+        "properties": {
+          "ruta": { "type": "string" },
+          "descripcion": { "type": "string" }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "modo": {
+      "type": "object",
+      "required": ["ro", "m", "B", "eta", "alpha", "D", "beta", "k", "fn", "Mr", "Fo", "delta", "Tr", "Po"],
+      "properties": {
+        "fmr": { "type": ["number", "null"] },
+        "delta_psi": { "type": ["number", "null"] },
+        "delta_total": { "type": ["number", "null"] }
+      }
+    }
+  }
+}

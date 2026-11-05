@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "acero_aisc360 v1",
+  "description": "Contrato del informe del modulo Acero AISC 360-22. Numeros crudos: fuerzas en unidad_fuerza (kN o tonf), momentos en unidad_fuerza·m, longitudes en mm, tensiones en MPa. El generador (generators/acero_aisc360.py) aplica el formato de docs/formato_reporte_docx.md.",
+  "type": "object",
+  "required": ["perfil", "material", "capitulos", "resumen"],
+  "properties": {
+    "titulo": { "type": "string" },
+    "norma": { "type": "string" },
+    "metodo": { "enum": ["LRFD", "ASD"] },
+    "perfil": {
+      "type": "object",
+      "required": ["designacion"],
+      "properties": {
+        "designacion": { "type": "string" },
+        "tipo": { "type": ["string", "null"] },
+        "familia": { "type": ["string", "null"] },
+        "figura": { "type": "string", "description": "Nombre del PNG de la seccion (hermano del JSON)." },
+        "propiedades": { "type": "object", "additionalProperties": { "type": "number" } }
+      }
+    },
+    "material": {
+      "type": "object",
+      "properties": {
+        "Fy": { "type": "number" },
+        "Fu": { "type": "number" },
+        "E": { "type": "number" },
+        "G": { "type": "number" }
+      }
+    },
+    "longitudes": { "type": "object", "additionalProperties": { "type": ["number", "null"] } },
+    "unidad_fuerza": { "enum": ["kN", "tonf"] },
+    "demandas": { "type": "object", "additionalProperties": { "type": "number" } },
+    "capitulos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["clave", "titulo", "unidad", "estados"],
+        "properties": {
+          "clave": { "type": "string" },
+          "titulo": { "type": "string" },
+          "capitulo": { "type": "string" },
+          "unidad": { "type": "string" },
+          "estados": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["descripcion"],
+              "properties": {
+                "descripcion": { "type": "string" },
+                "ecuacion": { "type": ["string", "null"] },
+                "resistencia": { "type": ["number", "null"] },
+                "demanda": { "type": ["number", "null"] },
+                "ratio": { "type": ["number", "null"] },
+                "con_demanda": { "type": "boolean" }
+              }
+            }
+          },
+          "notas": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "resumen": {
+      "type": "object",
+      "properties": {
+        "gobernante": { "type": ["string", "null"] },
+        "ratio_max": { "type": "number" },
+        "cumple": { "type": "boolean" },
+        "sin_demanda": { "type": "boolean" },
+        "ratios": { "type": "object", "additionalProperties": { "type": "number" } },
+        "interaccion_con_traccion": { "type": "boolean" }
+      }
+    },
+    "advertencias": { "type": "array", "items": { "type": "string" } },
+    "error": { "type": ["string", "null"] }
+  }
+}

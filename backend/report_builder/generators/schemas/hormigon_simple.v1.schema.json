@@ -1,0 +1,246 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "hormigon_simple v1",
+  "description": "Contrato del informe del programa \"Hormigón simple\" (ACI 318-25: flexión, corte, corte por capacidad, punzamiento, tabla de evaluación y armado de viga). Lo calcula el servidor (POST /hormigon/reporte) a partir de las entradas y se sube al proyecto como hormigon_simple.json; no lleva imágenes. Unidades: kgf/cm², tonf, tonf·m y cm (posiciones de la viga en m). Nunca NaN ni Infinity. El generador (generators/hormigon_simple.py) depende solo de este contrato.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["titulo", "fecha", "materiales", "secciones"],
+  "definitions": {
+    "escalar": { "type": ["number", "string", "boolean", "null"] },
+    "advertencia": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["severidad", "mensaje"],
+      "properties": {
+        "severidad": { "type": "string", "enum": ["info", "advertencia"] },
+        "mensaje": { "type": "string" }
+      }
+    },
+    "numero_o_nulo": { "type": ["number", "null"] }
+  },
+  "properties": {
+    "titulo": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "fecha": { "type": "string" },
+    "materiales": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fc", "fy", "sistema_barras", "phi_flexion", "phi_corte", "phi_compresion", "phi_corte_capacidad", "lambda_factor"],
+      "properties": {
+        "fc": { "type": "number" },
+        "fy": { "type": "number" },
+        "sistema_barras": { "type": "string", "enum": ["ASTM", "Metricas"] },
+        "phi_flexion": { "type": "number" },
+        "phi_corte": { "type": "number" },
+        "phi_compresion": { "type": "number" },
+        "phi_corte_capacidad": { "type": "number" },
+        "lambda_factor": { "type": "number" }
+      }
+    },
+    "secciones": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["panel", "titulo", "entradas", "resultados", "estado", "verificacion", "advertencias", "pasos"],
+        "properties": {
+          "panel": {
+            "type": "string",
+            "enum": ["flexion", "corte", "capacidad", "punzamiento", "tabla", "viga"]
+          },
+          "titulo": { "type": "string" },
+          "entradas": { "type": "object", "additionalProperties": { "$ref": "#/definitions/escalar" } },
+          "resultados": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["variable", "valor"],
+              "properties": {
+                "variable": { "type": "string" },
+                "valor": { "$ref": "#/definitions/escalar" },
+                "unidad": { "type": "string" }
+              }
+            }
+          },
+          "estado": { "type": "string", "enum": ["OK", "REVISAR", "DIMENSIONAR", "NO DISPONIBLE"] },
+          "verificacion": { "type": "boolean" },
+          "advertencias": { "type": "array", "items": { "$ref": "#/definitions/advertencia" } },
+          "pasos": { "type": "array", "items": { "type": "string" } },
+          "tablas": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["titulo", "columnas", "filas"],
+              "properties": {
+                "titulo": { "type": "string" },
+                "columnas": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+                "filas": {
+                  "type": "array",
+                  "items": { "type": "array", "items": { "$ref": "#/definitions/escalar" } }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "viga": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["geometria", "armado", "verificacion", "despiece"],
+      "properties": {
+        "geometria": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["nombre", "L", "b", "h", "d_prima"],
+          "properties": {
+            "nombre": { "type": "string" },
+            "L": { "type": "number" },
+            "b": { "type": "number" },
+            "h": { "type": "number" },
+            "d_prima": { "type": "number" },
+            "apoyos": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["x", "tipo"],
+                "properties": {
+                  "x": { "type": "number" },
+                  "tipo": { "type": "string" },
+                  "etiqueta": { "type": "string" }
+                }
+              }
+            },
+            "demanda": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "fuente": { "type": "string" },
+                "casos": { "type": "array", "items": { "type": "string" } },
+                "n_estaciones": { "type": "integer", "minimum": 0 }
+              }
+            }
+          }
+        },
+        "armado": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["grupos", "estribos"],
+          "properties": {
+            "grupos": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "layer", "count", "dia_mm", "x_start", "x_end"],
+                "properties": {
+                  "id": { "type": "string" },
+                  "layer": { "type": "string", "enum": ["bottom", "top"] },
+                  "row": { "type": "integer" },
+                  "count": { "type": "integer" },
+                  "dia_mm": { "type": "number" },
+                  "x_start": { "type": "number" },
+                  "x_end": { "type": "number" },
+                  "role": { "type": "string" }
+                }
+              }
+            },
+            "estribos": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id", "dia_mm", "legs", "spacing_cm", "x_ini", "x_fin"],
+                "properties": {
+                  "id": { "type": "string" },
+                  "dia_mm": { "type": "number" },
+                  "legs": { "type": "integer" },
+                  "spacing_cm": { "type": "number" },
+                  "x_ini": { "type": "number" },
+                  "x_fin": { "type": "number" }
+                }
+              }
+            }
+          }
+        },
+        "verificacion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ok", "chequeos"],
+          "properties": {
+            "ok": { "type": "boolean" },
+            "chequeos": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["nombre", "cumple"],
+                "properties": {
+                  "nombre": { "type": "string" },
+                  "cumple": { "type": "boolean" },
+                  "utilizacion": { "$ref": "#/definitions/numero_o_nulo" },
+                  "deficits": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": ["x_ini", "x_fin"],
+                      "properties": { "x_ini": { "type": "number" }, "x_fin": { "type": "number" } }
+                    }
+                  },
+                  "notas": { "type": "array", "items": { "type": "string" } }
+                }
+              }
+            },
+            "zonas_corte": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["x_ini", "x_fin"],
+                "properties": {
+                  "x_ini": { "type": "number" },
+                  "x_fin": { "type": "number" },
+                  "phi_vc": { "$ref": "#/definitions/numero_o_nulo" },
+                  "phi_vs": { "$ref": "#/definitions/numero_o_nulo" },
+                  "phi_vn": { "$ref": "#/definitions/numero_o_nulo" },
+                  "av_s": { "$ref": "#/definitions/numero_o_nulo" },
+                  "av_s_min": { "$ref": "#/definitions/numero_o_nulo" },
+                  "cumple_av_min": { "type": "boolean" },
+                  "cumple_s_max": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "despiece": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["filas", "total_kg"],
+          "properties": {
+            "filas": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["marca", "elemento", "descripcion", "longitud", "peso_kg"],
+                "properties": {
+                  "marca": { "type": "string" },
+                  "elemento": { "type": "string" },
+                  "descripcion": { "type": "string" },
+                  "longitud": { "type": "string" },
+                  "peso_kg": { "$ref": "#/definitions/numero_o_nulo" }
+                }
+              }
+            },
+            "total_kg": { "$ref": "#/definitions/numero_o_nulo" }
+          }
+        }
+      }
+    },
+    "advertencias_generales": { "type": "array", "items": { "$ref": "#/definitions/advertencia" } }
+  }
+}

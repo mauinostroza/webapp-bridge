@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "espectro v1",
+  "description": "Contrato de salida del programa \"Espectro\" (boton 'Exportar informe (JSON)', nch2369_app.py::_export_report_json). Exporta este JSON junto a un PNG del grafico en la misma carpeta (grafico.ruta es relativa a esa carpeta). El generador (generators/espectro.py) depende solo de este contrato, nunca del codigo interno del programa que lo produce.",
+  "type": "object",
+  "required": ["parametros_entrada", "propiedades_suelo", "grafico", "valores_finales"],
+  "properties": {
+    "titulo": { "type": "string" },
+    "generado_en": { "type": "string" },
+    "parametros_entrada": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["etiqueta", "valor"],
+        "properties": {
+          "etiqueta": { "type": "string" },
+          "valor": {},
+          "comentario": { "type": "string" }
+        }
+      }
+    },
+    "propiedades_suelo": {
+      "type": "object",
+      "required": ["tipo"],
+      "properties": {
+        "tipo": { "type": "string" },
+        "S": { "type": "number" },
+        "r": { "type": "number" },
+        "T0": { "type": "number" },
+        "p": { "type": "number" },
+        "q": { "type": "number" },
+        "T1": { "type": "number" }
+      }
+    },
+    "grafico": {
+      "type": "object",
+      "required": ["ruta"],
+      "properties": {
+        "ruta": { "type": "string" },
+        "centrado": { "type": "boolean" },
+        "descripcion": { "type": "string" }
+      }
+    },
+    "valores_finales": {
+      "type": "object",
+      "properties": {
+        "peso_sismico_Ps": { "type": "number" },
+        "cortes": {
+          "type": "object",
+          "properties": {
+            "Qx": { "type": "number" },
+            "Qy": { "type": "number" },
+            "Qmin": { "type": "number" },
+            "Qmax": { "type": "number" }
+          }
+        },
+        "ajustes_qmin": {
+          "type": "object",
+          "properties": {
+            "X": {},
+            "Y": {}
+          }
+        },
+        "ajustes_qmax": {
+          "type": "object",
+          "properties": {
+            "X": {},
+            "Y": {}
+          }
+        },
+        "factores_R1": {
+          "type": "object",
+          "properties": {
+            "R1_X": { "type": "number" },
+            "R1_Y": { "type": "number" }
+          }
+        }
+      }
+    }
+  }
+}

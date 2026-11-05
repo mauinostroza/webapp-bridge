@@ -1,0 +1,25 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+node_modules/
+web/dist/
+*.tsbuildinfo
+var/
+.data/
+.env
+.env.*
+!.env.example
+build/
+dist/
+*.spec
+*.log
+
+.portable-venv/
+portable_dist/
+portable_build/
+WorkbenchPortable.zip
+
+# Orígenes de las webs alojadas (los genera la compilación; ver bridge/hosted.py)
+bridge/origenes_alojados.json

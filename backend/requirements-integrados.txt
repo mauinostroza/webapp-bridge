@@ -1,0 +1,5 @@
+# Dependencias opcionales de los módulos integrados.
+# ezdxf: exportación DXF del módulo de hormigón simple (sin ella sólo el DXF responde 503).
+# El diagrama de interacción ya no necesita librerías de cálculo en el servidor (motor TypeScript en el
+# navegador); concreteproperties y compañía están en backend/requirements-oraculo.txt (sólo desarrollo y CI).
+ezdxf==1.4.4

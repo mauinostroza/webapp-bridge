@@ -1,0 +1,711 @@
+{
+  "_comment": "Contrato bridge<->web: por ruta consumida por la web, las claves de nivel superior de la respuesta (y, para listas, las claves de cada item bajo \"items\"). tests/test_bridge_contracts.py ejercita cada ruta con COM falso y compara contra este archivo; web/src/bridge_contracts.test.ts compara los tipos TS/wrappers de la web contra el mismo archivo. Un cambio de nombre en cualquiera de los dos lados debe actualizar este archivo o una de las dos pruebas falla.",
+  "routes": {
+    "GET /v1/sap/status": {
+      "keys": ["platform", "connected"]
+    },
+    "POST /v1/sap/attach": {
+      "keys": ["connected"]
+    },
+    "POST /v1/sap/snapshot": {
+      "keys": [
+        "model",
+        "coordinates",
+        "reactions",
+        "displacements",
+        "soil_pressures",
+        "groups",
+        "model_locked"
+      ],
+      "items": {
+        "groups": ["id", "name", "nodes", "shells"]
+      }
+    },
+    "GET /v1/sap/actions/profiles/catalog": {
+      "keys": ["materials", "sections"]
+    },
+    "GET /v1/sap/actions/profiles/selected-frames": {
+      "keys": ["frames"],
+      "items": {
+        "frames": ["frame", "section"]
+      }
+    },
+    "POST /v1/sap/actions/profiles/create/apply": {
+      "keys": ["name", "section_type", "ret", "message", "overwritten"]
+    },
+    "POST /v1/sap/actions/profiles/section/apply": {
+      "keys": ["section", "assigned_frames", "partial"]
+    },
+    "GET /v1/sap/actions/foundations/cases": {
+      "keys": ["load_cases", "combos", "envolventes"]
+    },
+    "GET /v1/sap/actions/foundations/selection": {
+      "keys": ["kind", "names"]
+    },
+    "GET /v1/sap/actions/foundations/groups": {
+      "keys": ["groups"],
+      "items": {
+        "groups": ["id", "name", "nodes", "shells"]
+      }
+    },
+    "GET /v1/sap/actions/foundations/load-patterns": {
+      "keys": ["load_patterns"]
+    },
+    "GET /v1/sap/actions/foundations/loads/existing": {
+      "keys": ["rows"],
+      "items": {
+        "rows": ["joint", "load_pat", "coord_sys", "f1", "f2", "f3", "m1", "m2", "m3"]
+      }
+    },
+    "POST /v1/sap/actions/foundations/loads/preview": {
+      "keys": ["changes"],
+      "items": {
+        "changes": ["joint", "load_pat", "before", "after"]
+      }
+    },
+    "POST /v1/sap/actions/foundations/loads/apply": {
+      "keys": ["applied", "failed", "missing_joints"]
+    },
+    "POST /v1/sap/actions/foundations/shell-diagram": {
+      "keys": ["elementos", "joints", "resultados"]
+    },
+    "POST /v1/sap/actions/foundations/shell-results": {
+      "keys": ["elementos", "joints", "joints_z", "resultados", "mensaje_sin_resultados"]
+    },
+    "POST /v1/sap/actions/foundations/shell-results-multi": {
+      "keys": ["filas", "errores"],
+      "items": {
+        "filas": ["franja", "combinacion", "paso", "valores"]
+      }
+    },
+    "POST /v1/sap/actions/foundations/pedestal-candidates": {
+      "keys": ["candidatos"],
+      "items": {
+        "candidatos": [
+          "frame",
+          "largo",
+          "ancho",
+          "largo_en_x",
+          "centro_x",
+          "centro_y",
+          "aproximado",
+          "motivo_aviso"
+        ]
+      }
+    },
+    "GET /v1/sap/actions/foundations/section-cuts": {
+      "keys": ["cuts"],
+      "items": {
+        "cuts": ["nombre", "grupo"]
+      }
+    },
+    "GET /v1/sap/actions/foundations/section-cuts/groups": {
+      "keys": ["groups"]
+    },
+    "POST /v1/sap/actions/foundations/section-cuts/preview": {
+      "keys": ["creado", "requiere_desbloqueo", "mensaje", "elementos"]
+    },
+    "POST /v1/sap/actions/foundations/section-cuts/apply": {
+      "keys": ["creado", "requiere_desbloqueo", "mensaje", "elementos"]
+    },
+    "POST /v1/sap/actions/foundations/section-cuts/forces": {
+      "keys": ["resultados", "model_locked"]
+    },
+    "GET /v1/sap/actions/esbelteces/groups": {
+      "keys": ["groups"]
+    },
+    "GET /v1/sap/actions/esbelteces/sections": {
+      "keys": ["sections"]
+    },
+    "POST /v1/sap/actions/esbelteces/section/apply": {
+      "keys": ["member"]
+    },
+    "POST /v1/sap/actions/esbelteces/highlight": {
+      "keys": ["count"]
+    },
+    "POST /v1/sap/actions/esbelteces/k-factors/apply": {
+      "keys": ["applied", "failures"]
+    },
+    "GET /v1/sap/actions/combinaciones/snapshot": {
+      "keys": ["load_cases", "combinations"],
+      "items": {
+        "combinations": ["name", "items"]
+      }
+    },
+    "GET /v1/sap/actions/combinaciones/existing": {
+      "keys": ["combinations"],
+      "items": {
+        "combinations": ["name", "items"]
+      }
+    },
+    "POST /v1/sap/actions/combinaciones/delete": {
+      "keys": ["failed"]
+    },
+    "POST /v1/sap/actions/combinaciones/send": {
+      "keys": ["created", "warnings"]
+    },
+    "GET /v1/sap/actions/espectro/functions": {
+      "keys": ["nombres"]
+    },
+    "GET /v1/sap/actions/espectro/load-cases": {
+      "keys": ["nombres"]
+    },
+    "POST /v1/sap/actions/espectro/send": {
+      "keys": ["enviadas", "errores"],
+      "items": {
+        "errores": ["nombre", "error"]
+      }
+    },
+    "POST /v1/sap/actions/espectro/ps": {
+      "keys": ["ps"]
+    },
+    "POST /v1/sap/actions/espectro/qxqy": {
+      "keys": ["qx", "qy"]
+    },
+    "POST /v1/sap/actions/espectro/modal": {
+      "keys": ["Tx", "Ty"]
+    },
+    "GET /v1/sap/actions/diagrama/groups": {
+      "keys": ["groups"]
+    },
+    "GET /v1/sap/actions/diagrama/combos": {
+      "keys": ["combos"]
+    },
+    "POST /v1/sap/actions/diagrama/group-demands": {
+      "keys": ["rows", "n_frames", "n_rows"],
+      "items": {
+        "rows": ["frame", "combo", "station", "n_kn", "mx_knm", "my_knm", "vu_x_kn", "vu_y_kn"]
+      }
+    },
+    "POST /v1/sap/actions/diagrama/selected-demands": {
+      "keys": ["rows", "n_frames", "n_rows"],
+      "items": {
+        "rows": ["frame", "combo", "station", "n_kn", "mx_knm", "my_knm", "vu_x_kn", "vu_y_kn"]
+      }
+    },
+    "GET /v1/sap/actions/hormigon/frames": {
+      "keys": ["frames"],
+      "items": {
+        "frames": ["nombre", "longitud_m", "seccion"]
+      }
+    },
+    "GET /v1/sap/actions/hormigon/combos": {
+      "keys": ["combos"]
+    },
+    "GET /v1/sap/actions/equilibrio/combos": {
+      "keys": ["combos"]
+    },
+    "GET /v1/sap/actions/equilibrio/groups": {
+      "keys": ["groups"]
+    },
+    "GET /v1/sap/actions/equilibrio/group-members": {
+      "keys": ["group", "members"]
+    },
+    "POST /v1/sap/actions/equilibrio/frame-data": {
+      "keys": ["frame", "H", "L", "axial_sismo", "axial_grav", "avisos"]
+    },
+    "POST /v1/sap/actions/equilibrio/group-demands": {
+      "keys": ["group", "members", "avisos"],
+      "items": {
+        "members": ["label", "Tn_req", "Pn_req", "H", "L", "avisos"]
+      }
+    },
+    "POST /v1/sap/pairing/request": {
+      "keys": ["request_id", "expires_in", "confirm_code"]
+    },
+    "GET /v1/sap/actions/graph/model": {
+      "keys": ["model", "units", "warnings", "read_ms"]
+    },
+    "GET /v1/sap/pairing/poll/{id}": {
+      "keys": ["status"]
+    },
+    "GET /v1/sap/actions/viewer/sections/props": {
+      "keys": ["units", "sections", "materials", "warnings"]
+    },
+    "GET /v1/sap/actions/viewer/status": {
+      "keys": [
+        "connected",
+        "source",
+        "modelName",
+        "snapshotId",
+        "stale",
+        "busy",
+        "error",
+        "designResultsStale"
+      ]
+    },
+    "GET /v1/sap/actions/viewer/results/cases": {
+      "keys": ["cases"],
+      "items": {
+        "cases": ["value", "name", "kind"]
+      }
+    },
+    "GET /v1/sap/actions/viewer/k": {
+      "keys": ["available", "reason", "tableKey", "notes", "frames"]
+    },
+    "POST /v1/sap/actions/cad/status": {
+      "keys": ["conectado", "programa", "version", "documento", "detalle"]
+    },
+    "POST /v1/sap/actions/cad/pick": {
+      "keys": ["x", "y"]
+    },
+    "POST /v1/sap/actions/cad/draw/begin": {
+      "keys": ["sesion", "programa", "documento"]
+    },
+    "POST /v1/sap/actions/cad/draw/batch": {
+      "keys": ["creadas", "omitidas", "errores"]
+    },
+    "POST /v1/sap/actions/cad/draw/end": {
+      "keys": ["documento", "creadas", "omitidas", "resumen"]
+    },
+    "POST /v1/sap/actions/cad/sap/groups": {
+      "keys": ["grupos"]
+    },
+    "POST /v1/sap/actions/cad/sap/foundation/start": {
+      "keys": ["job"]
+    },
+    "POST /v1/sap/actions/cad/sap/foundation/status": {
+      "keys": ["estado", "etapa", "hechas", "total", "transcurrido_s", "resultado", "error"]
+    },
+    "POST /v1/sap/actions/cad/sap/foundation/cancel": {
+      "keys": ["cancelado"]
+    },
+    "GET /v1/sap/actions/placa-base/cargas": {
+      "keys": ["modelo", "casos", "combinaciones", "seleccion", "seleccion_desconocida"]
+    },
+    "POST /v1/sap/actions/placa-base/seleccionar-cargas": {
+      "keys": ["modelo", "casos", "combinaciones", "ignorados"]
+    },
+    "GET /v1/sap/actions/placa-base/nodos": {
+      "keys": ["modelo", "seleccionados", "restringidos", "para_diseno"]
+    },
+    "POST /v1/sap/actions/placa-base/reacciones": {
+      "keys": ["unidades", "ejes", "angulo_deg", "reacciones"],
+      "items": {
+        "reacciones": ["node", "load_name", "step_type", "step_num", "P", "Vx", "Vy", "Mx", "My", "Mz"]
+      }
+    },
+    "POST /v1/sap/actions/placa-base/columna-en-nodo": {
+      "keys": ["columnas"],
+      "items": {
+        "columnas": ["nodo", "columna"]
+      }
+    },
+    "POST /v1/sap/actions/placa-base/resaltar-nodos": {
+      "keys": ["resaltado"]
+    },
+    "GET /v1/sap/actions/viewer/results/reactions": {
+      "keys": ["case", "nodes", "units", "toMeters", "sum", "max", "warnings"]
+    },
+    "GET /v1/sap/actions/viewer/results/frames": {
+      "keys": ["case", "frames", "units", "toMeters", "next", "warnings"]
+    },
+    "GET /v1/sap/actions/viewer/results/envelope": {
+      "keys": ["kind", "cases", "max", "min", "governing", "units", "toMeters", "next", "warnings"]
+    },
+    "GET /v1/sap/actions/zapata-biaxial/estado": { "keys": ["modelo", "bloqueado"] },
+    "GET /v1/sap/actions/zapata-biaxial/casos": {
+      "keys": ["modelo", "casos", "combinaciones", "seleccion", "seleccion_desconocida"]
+    },
+    "POST /v1/sap/actions/zapata-biaxial/nodos": {
+      "keys": ["modelo", "origen", "unidades", "columns", "data"]
+    },
+    "POST /v1/sap/actions/zapata-biaxial/reacciones": { "keys": ["modelo", "unidades", "columns", "data"] },
+    "POST /v1/sap/actions/zapata-biaxial/exportar/preview": {
+      "keys": ["ok", "modelo", "bloqueado", "conflictos", "avisos", "material_existe", "resumen", "huella"]
+    },
+    "POST /v1/sap/actions/zapata-biaxial/exportar/apply": {
+      "keys": ["ok", "verificado", "creado", "resumen", "modelo"]
+    },
+    "POST /v1/sap/actions/foundations/modif/frames": {
+      "keys": ["schema", "units", "frames", "existing"],
+      "items": {
+        "frames": ["name", "lower_joint", "upper_joint", "lower", "section", "footprint", "vertical", "notes"]
+      }
+    },
+    "POST /v1/sap/actions/foundations/modif/catalog": {
+      "keys": ["area_sections", "materials", "load_patterns", "groups"],
+      "items": {
+        "area_sections": ["name", "thickness", "material", "shell_type"]
+      }
+    },
+    "POST /v1/sap/actions/foundations/modif/preview": {
+      "keys": ["ok", "conflicts", "will_create", "model_locked"]
+    },
+    "POST /v1/sap/actions/foundations/modif/apply": {
+      "keys": ["ok", "created", "verification"]
+    },
+    "GET /v1/sap/actions/nomogramas/selected-frames": {
+      "keys": ["modelo", "unidades", "frames"],
+      "items": {
+        "frames": [
+          "frame",
+          "section",
+          "material",
+          "e_mpa",
+          "i33_mm4",
+          "i22_mm4",
+          "area_mm2",
+          "length_mm",
+          "point_i",
+          "point_j",
+          "orientacion",
+          "releases",
+          "modificadores",
+          "note"
+        ]
+      }
+    },
+    "POST /v1/sap/actions/excel/open-reactions": {
+      "keys": ["path", "rows_written", "opened", "note"]
+    },
+    "POST /v1/sap/actions/excel/read-reactions": {
+      "keys": ["rows", "count"],
+      "items": {
+        "rows": ["joint", "load_pat", "coord_sys", "f1", "f2", "f3", "m1", "m2", "m3"]
+      }
+    },
+    "GET /v1/sap/actions/acero-aisc360/combos": {
+      "keys": ["combinaciones", "casos"]
+    },
+    "GET /v1/sap/actions/acero-aisc360/selected": {
+      "keys": ["frames"],
+      "items": {
+        "frames": ["frame", "seccion", "longitud_m"]
+      }
+    },
+    "POST /v1/sap/actions/acero-aisc360/fuerzas": {
+      "keys": [
+        "unidades",
+        "ejes",
+        "validado_con_sap",
+        "validado_con",
+        "validado_fecha",
+        "frames",
+        "demandas",
+        "envolvente",
+        "warnings"
+      ],
+      "items": {
+        "frames": ["frame", "longitud_m", "seccion", "combinaciones"],
+        "demandas": [
+          "frame",
+          "combo",
+          "Pu_kN",
+          "Tu_kN",
+          "Vux_kN",
+          "Vuy_kN",
+          "Mux_kNm",
+          "Muy_kNm",
+          "T_kNm",
+          "Cb",
+          "x_Mmax_m"
+        ],
+        "envolvente": [
+          "frame",
+          "Pu_kN",
+          "Tu_kN",
+          "Vux_kN",
+          "Vuy_kN",
+          "Mux_kNm",
+          "Muy_kNm",
+          "T_kNm",
+          "Cb",
+          "gobierna"
+        ]
+      }
+    },
+    "POST /v1/sap/actions/acero-aisc360/enviar/preview": {
+      "keys": [
+        "preview",
+        "will_mutate",
+        "validado_con_sap",
+        "validado_con",
+        "validado_fecha",
+        "seccion",
+        "material",
+        "barras",
+        "cambios",
+        "sin_cambio",
+        "modelo_bloqueado",
+        "warnings"
+      ],
+      "items": {
+        "barras": ["frame", "seccion_actual", "cambia"]
+      }
+    },
+    "POST /v1/sap/actions/acero-aisc360/enviar/apply": {
+      "keys": [
+        "ok",
+        "partial",
+        "validado_con_sap",
+        "validado_con",
+        "validado_fecha",
+        "seccion",
+        "modelo_desbloqueado",
+        "resultados_invalidados",
+        "cambios",
+        "sin_cambio",
+        "aplicadas",
+        "revertir",
+        "verificacion",
+        "warnings"
+      ],
+      "items": {
+        "aplicadas": ["frame", "seccion_previa"],
+        "verificacion": ["barra", "esperado", "leido", "ok"]
+      }
+    },
+    "POST /v1/sap/actions/acero-aisc360/enviar/revertir": {
+      "keys": [
+        "ok",
+        "partial",
+        "validado_con_sap",
+        "validado_con",
+        "validado_fecha",
+        "modelo_desbloqueado",
+        "resultados_invalidados",
+        "aplicadas",
+        "revertir",
+        "verificacion",
+        "warnings"
+      ],
+      "items": {
+        "aplicadas": ["frame", "seccion_previa"],
+        "verificacion": ["barra", "esperado", "leido", "ok"]
+      }
+    },
+    "GET /v1/sap/actions/viewer/snapshot": {
+      "keys": [
+        "areas",
+        "createdAt",
+        "frames",
+        "id",
+        "loads",
+        "modelName",
+        "nodes",
+        "patterns",
+        "schemaVersion",
+        "sections",
+        "source",
+        "stats",
+        "supports",
+        "units",
+        "warnings"
+      ]
+    },
+    "POST /v1/sap/actions/viewer/connect": {
+      "keys": [
+        "areas",
+        "createdAt",
+        "frames",
+        "id",
+        "loads",
+        "modelName",
+        "nodes",
+        "patterns",
+        "schemaVersion",
+        "sections",
+        "source",
+        "stats",
+        "supports",
+        "units",
+        "warnings"
+      ]
+    },
+    "POST /v1/sap/actions/viewer/refresh": {
+      "keys": [
+        "areas",
+        "createdAt",
+        "frames",
+        "id",
+        "loads",
+        "modelName",
+        "nodes",
+        "patterns",
+        "schemaVersion",
+        "sections",
+        "source",
+        "stats",
+        "supports",
+        "units",
+        "warnings"
+      ]
+    },
+    "GET /v1/sap/actions/viewer/results/design": { "keys": ["max", "ratios", "warnings"] },
+    "GET /v1/sap/actions/viewer/results/area": {
+      "keys": ["case", "component", "values", "max", "unit", "warnings"]
+    },
+    "GET /v1/sap/actions/viewer/results/displacements": {
+      "keys": ["case", "nodes", "unit", "toMeters", "max", "warnings"]
+    },
+    "GET /v1/sap/actions/viewer/results/frame/{frame}": {
+      "keys": ["case", "frame", "stations", "units", "warnings"]
+    },
+    "GET /v1/sap/actions/viewer/k/design": {
+      "keys": ["available", "reason", "tableKey", "notes", "frames", "governing"]
+    },
+    "GET /v1/sap/actions/viewer/k/effective": {
+      "keys": ["available", "reason", "tableKey", "designTableKey", "notes", "frames", "governing"]
+    },
+    "GET /v1/sap/actions/viewer/k/diagnose": { "keys": ["text"] },
+    "POST /v1/sap/actions/viewer/k/preview": {
+      "keys": ["nonce", "frame", "diff", "modelLocked", "warnings"]
+    },
+    "POST /v1/sap/actions/viewer/k/apply": {
+      "keys": ["ok", "frame", "unlocked", "backup", "values", "warnings", "designResultsStale", "auditNote"]
+    },
+    "GET /v1/sap/actions/caesar/modelo": {
+      "keys": ["ok", "locked", "unidadesModelo", "nPuntos", "puntosTruncado", "puntos", "loadPatterns"],
+      "items": {
+        "loadPatterns": ["name", "type"]
+      }
+    },
+    "POST /v1/sap/actions/caesar/cargas/preview": {
+      "keys": [
+        "ok",
+        "locked",
+        "unidadesModelo",
+        "unidadesEnvio",
+        "patterns",
+        "nodos",
+        "cargas",
+        "cargasPrevias",
+        "avisos"
+      ]
+    },
+    "POST /v1/sap/actions/caesar/cargas/apply": {
+      "keys": [
+        "ok",
+        "estado",
+        "patternsCreados",
+        "aplicadas",
+        "fallidas",
+        "nFallidas",
+        "unidadesRestauradas",
+        "unidadesModelo",
+        "modeloDesbloqueado",
+        "avisos"
+      ],
+      "items": {
+        "fallidas": ["nodo", "loadPattern", "motivo"]
+      }
+    },
+    "GET /v1/sap/actions/caesar/seleccion": {
+      "keys": [
+        "ok",
+        "nPuntos",
+        "puntos",
+        "puntosTruncado",
+        "nodos",
+        "noNumericos",
+        "nNoNumericos",
+        "unidadesModelo"
+      ]
+    },
+    "POST /v1/sap/actions/caesar/cargas/existentes": {
+      "keys": [
+        "ok",
+        "unidadesEnvio",
+        "unidadesModelo",
+        "unidadesRestauradas",
+        "cargas",
+        "nCargas",
+        "cargasTruncadas",
+        "nodosInexistentes",
+        "nNodosInexistentes",
+        "patternsInexistentes",
+        "avisos"
+      ],
+      "items": {
+        "cargas": ["nodo", "loadPattern", "fx", "fy", "fz"]
+      }
+    },
+    "POST /v1/sap/revoke": { "keys": ["revoked"] },
+    "POST /v1/documentos/pick": { "keys": ["cancelled", "doc_id", "nombre", "carpeta_mostrar"] },
+    "GET /v1/documentos/list": {
+      "keys": ["documentos"],
+      "items": { "documentos": ["doc_id", "nombre", "carpeta_mostrar", "available"] }
+    },
+    "POST /v1/documentos/prepare": {
+      "keys": ["ok", "manifest_path", "created", "title_count", "positions", "warnings"]
+    },
+    "GET /v1/documentos/positions": {
+      "keys": ["positions"],
+      "items": { "positions": ["index", "label", "preview_text", "level", "heading_text"] }
+    },
+    "GET /v1/documentos/manifest": { "keys": ["manifest"] },
+    "POST /v1/documentos/anchors": { "keys": ["ok", "tag", "module_id", "json_relativo"] },
+    "DELETE /v1/documentos/anchors/{tag}": { "keys": ["ok"] },
+    "POST /v1/documentos/sync": {
+      "keys": ["ok", "dry_run", "results"],
+      "items": { "results": ["module_id", "tag", "status", "detail", "new_last_sync"] }
+    },
+    "POST /v1/documentos/export-module": { "keys": ["slug", "json_relativo", "n_imagenes", "ruta"] },
+    "POST /v1/documentos/open-in-word": { "keys": ["ok", "nombre"] },
+    "GET /v1/documentos/storage": { "keys": ["modo", "registro", "documento"] },
+    "GET /v1/documentos/backup": { "keys": [], "binario": "application/zip" },
+    "GET /v1/sap/actions/hormigon/selected-frames": {
+      "keys": ["frames"],
+      "items": {
+        "frames": ["nombre", "longitud_m", "seccion", "nudo_i", "nudo_j"]
+      }
+    },
+    "GET /v1/sap/actions/espectro/spectra": {
+      "keys": ["nombres"]
+    },
+    "GET /v1/sap/actions/diagrama/selected-frames": {
+      "keys": ["frames"]
+    },
+    "POST /v1/sap/actions/diagrama/group-frames": {
+      "keys": ["frames"]
+    },
+    "POST /v1/sap/actions/diagrama/frames-info": {
+      "keys": ["frames"],
+      "items": {
+        "frames": ["frame", "seccion", "tipo", "ancho_mm", "alto_mm", "diametro_mm"]
+      }
+    },
+    "POST /v1/sap/actions/diagrama/frames-demands": {
+      "keys": ["rows", "n_frames", "n_rows"],
+      "items": {
+        "rows": ["frame", "combo", "station", "n_kn", "mx_knm", "my_knm", "vu_x_kn", "vu_y_kn"]
+      }
+    },
+    "POST /v1/documentos/plan-fragmentos": {
+      "keys": ["contrato", "huella_documento", "huella_estilos", "lienzo_b64", "modulos"],
+      "items": { "modulos": ["module_id", "tag", "titulo", "desplazamiento", "paquete_b64"] }
+    },
+    "POST /v1/documentos/aplicar-fragmentos": {
+      "keys": ["ok", "dry_run", "results"],
+      "items": { "results": ["module_id", "tag", "status", "detail", "new_last_sync"] }
+    },
+    "POST /v1/sap/actions/hormigon/frame-forces": {
+      "keys": ["frame", "longitud_m", "unidades", "combos", "filas"],
+      "items": {
+        "filas": ["estacion_m", "caso", "paso", "P", "V2", "M3"]
+      }
+    },
+    "GET /v1/sap/actions/esbelteces/selected-raw": {
+      "keys": ["members"]
+    },
+    "POST /v1/sap/actions/esbelteces/import-groups-raw": {
+      "keys": ["members"]
+    }
+  },
+  "legado": {
+    "_comment": "Rutas de puentes antiguos que la web aun usa como respaldo (404 en el puente nuevo). Ya no existen en el puente actual: tests/test_bridge_contratos_cobertura.py las ignora (solo lee \"routes\"). Se eliminan cuando la web deje de usarlas.",
+    "GET /v1/sap/actions/esbelteces/selected": {
+      "keys": ["members"]
+    },
+    "POST /v1/sap/actions/esbelteces/import-groups": {
+      "keys": ["members"]
+    },
+    "POST /v1/sap/actions/hormigon/frame-demand-multi": {
+      "keys": ["frame", "longitud_m", "combinaciones"],
+      "items": {
+        "combinaciones": ["combo", "demanda"]
+      }
+    }
+  }
+}

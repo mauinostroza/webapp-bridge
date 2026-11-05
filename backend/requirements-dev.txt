@@ -1,0 +1,3 @@
+# Herramientas de desarrollo. No se incluyen en la imagen ni en el portable.
+ruff==0.16.7
+pytest==9.1.1

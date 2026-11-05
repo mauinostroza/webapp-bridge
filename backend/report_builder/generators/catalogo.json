@@ -1,0 +1,80 @@
+[
+  {
+    "module_id": "placas_base",
+    "import_path": "generators.placas_base:build",
+    "schema_path": "generators/schemas/placas_base.v1.schema.json",
+    "display_name": "Placas bases"
+  },
+  {
+    "module_id": "fundaciones",
+    "import_path": "generators.fundaciones:build",
+    "schema_path": "generators/schemas/fundaciones.v1.schema.json",
+    "display_name": "Fundaciones"
+  },
+  {
+    "module_id": "esbelteces",
+    "import_path": "generators.esbelteces:build",
+    "schema_path": "generators/schemas/esbelteces.v1.schema.json",
+    "display_name": "Esbelteces"
+  },
+  {
+    "module_id": "combinaciones",
+    "import_path": "generators.combinaciones:build",
+    "schema_path": "generators/schemas/combinaciones.v1.schema.json",
+    "display_name": "Combinaciones"
+  },
+  {
+    "module_id": "espectro",
+    "import_path": "generators.espectro:build",
+    "schema_path": "generators/schemas/espectro.v1.schema.json",
+    "display_name": "Parámetros sísmicos"
+  },
+  {
+    "module_id": "diagrama_interaccion",
+    "import_path": "generators.diagrama_interaccion:build",
+    "schema_path": "generators/schemas/diagrama_interaccion.v1.schema.json",
+    "display_name": "Diagrama de interacción"
+  },
+  {
+    "module_id": "nomogramas",
+    "import_path": "generators.nomogramas:build",
+    "schema_path": "generators/schemas/nomogramas.v1.schema.json",
+    "display_name": "Nomogramas"
+  },
+  {
+    "module_id": "hormigon_simple",
+    "import_path": "generators.hormigon_simple:build",
+    "schema_path": "generators/schemas/hormigon_simple.v1.schema.json",
+    "display_name": "Hormigón simple"
+  },
+  {
+    "module_id": "equilibrio_plastico",
+    "import_path": "generators.equilibrio_plastico:build",
+    "schema_path": "generators/schemas/equilibrio_plastico.v1.schema.json",
+    "display_name": "Equilibrio plástico"
+  },
+  {
+    "module_id": "sulzberger",
+    "import_path": "generators.sulzberger:build",
+    "schema_path": "generators/schemas/sulzberger.v1.schema.json",
+    "display_name": "Sulzberger"
+  },
+  {
+    "module_id": "bombas",
+    "import_path": "generators.bombas:build",
+    "schema_path": "generators/schemas/bombas.v1.schema.json",
+    "display_name": "Vibración de bombas"
+  },
+  {
+    "module_id": "zapata_biaxial",
+    "import_path": "generators.zapata_biaxial:build",
+    "schema_path": "generators/schemas/zapata_biaxial.v1.schema.json",
+    "display_name": "Zapatas biaxiales"
+  },
+  {
+    "module_id": "acero_aisc360",
+    "import_path": "generators.acero_aisc360:build",
+    "schema_path": "generators/schemas/acero_aisc360.v1.schema.json",
+    "display_name": "Acero AISC 360"
+  }
+]

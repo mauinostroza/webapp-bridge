@@ -1,0 +1,156 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "placas_base v1",
+  "description": "Contrato de salida del modulo de diseno de placas base de columna (AISC 360 / ACI 318). El generador (generators/placas_base.py) depende solo de este contrato, nunca del codigo interno del modulo que lo produce.",
+  "type": "object",
+  "required": ["disenos"],
+  "properties": {
+    "version": { "type": "integer" },
+    "proyecto": { "type": "string" },
+    "disenos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["registro", "material", "columna", "placa_base", "perno", "pedestal"],
+        "properties": {
+          "registro": {
+            "type": "object",
+            "required": ["nombre_diseno"],
+            "properties": {
+              "nombre_diseno": { "type": "string" },
+              "notas": { "type": "string" }
+            }
+          },
+          "config": {
+            "type": "object",
+            "properties": {
+              "metodo": { "type": "string" },
+              "pernos_dentro": { "type": "boolean" }
+            }
+          },
+          "material": {
+            "type": "object",
+            "required": ["f_prime_c", "fy_acero", "Fy_estructural", "Fu_estructural", "E_acero"],
+            "properties": {
+              "f_prime_c": { "type": "number" },
+              "fy_acero": { "type": "number" },
+              "Fy_estructural": { "type": "number" },
+              "Fu_estructural": { "type": "number" },
+              "E_acero": { "type": "number" }
+            }
+          },
+          "columna": {
+            "type": "object",
+            "required": ["perfil", "d", "bf", "tf", "tw", "Ag"],
+            "properties": {
+              "perfil": { "type": "string" },
+              "tipo_seccion": { "type": "string" },
+              "d": { "type": "number" },
+              "bf": { "type": "number" },
+              "tf": { "type": "number" },
+              "tw": { "type": "number" },
+              "Ag": { "type": "number" }
+            }
+          },
+          "placa_base": {
+            "type": "object",
+            "required": ["N", "B", "tp"],
+            "properties": {
+              "N": { "type": "number" },
+              "B": { "type": "number" },
+              "tp": { "type": "number" },
+              "m": { "type": "number" },
+              "n": { "type": "number" },
+              "lambda_n": { "type": "number" }
+            }
+          },
+          "perno": {
+            "type": "object",
+            "required": ["grado", "db_in", "nt", "nv"],
+            "properties": {
+              "grado": { "type": "string" },
+              "db_in": { "type": "number" },
+              "db": { "type": "number" },
+              "Ab": { "type": "number" },
+              "Ase": { "type": "number" },
+              "Fu_bolt": { "type": "number" },
+              "Fnt": { "type": "number" },
+              "Fnv": { "type": "number" },
+              "hilo_excluido_corte": { "type": "boolean" },
+              "nt": { "type": "integer" },
+              "nv": { "type": "integer" },
+              "hef": { "type": "number" },
+              "edge": { "type": "number" },
+              "sep": { "type": "number" }
+            }
+          },
+          "pedestal": {
+            "type": "object",
+            "properties": {
+              "N": { "type": "number" },
+              "B": { "type": "number" }
+            }
+          },
+          "anclaje_hormigon": {
+            "type": "object",
+            "properties": {
+              "anchor_type": { "type": "string" },
+              "design_code": { "type": "string" },
+              "crack_condition": { "type": "string" },
+              "seismic": { "type": "boolean" },
+              "pressure_model": { "type": "string" }
+            }
+          },
+          "combinaciones": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["caso", "P", "Vx", "Vy", "Mx", "My"],
+              "properties": {
+                "nodo": { "type": "string" },
+                "numero": { "type": "integer" },
+                "caso": { "type": "string" },
+                "P": { "type": "number" },
+                "Vx": { "type": "number" },
+                "Vy": { "type": "number" },
+                "Mx": { "type": "number" },
+                "My": { "type": "number" }
+              }
+            }
+          },
+          "atiesador": {
+            "type": "object",
+            "required": ["incluir"],
+            "properties": {
+              "incluir": { "type": "boolean" },
+              "espesor": { "type": "number" },
+              "altura": { "type": "number" },
+              "ancho": { "type": "number" },
+              "num_atiesadores": { "type": "integer" }
+            }
+          },
+          "placa_silla": {
+            "type": "object",
+            "required": ["incluir"],
+            "properties": {
+              "incluir": { "type": "boolean" },
+              "espesor": { "type": "number" },
+              "longitud": { "type": "number" },
+              "ancho": { "type": "number" }
+            }
+          },
+          "llave_corte": {
+            "type": "object",
+            "required": ["incluir"],
+            "properties": {
+              "incluir": { "type": "boolean" },
+              "tipo": { "type": "string" },
+              "bc": { "type": "number" },
+              "hc": { "type": "number" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

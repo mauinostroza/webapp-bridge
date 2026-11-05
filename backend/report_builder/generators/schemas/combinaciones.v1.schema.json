@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "combinaciones v1",
+  "description": "Contrato de salida del programa \"Combinaciones\" (Exportar > Exportar informacion para reporte (.docx)..., combinaciones/io/report_export.py::build_docx_report_data). El generador (generators/combinaciones.py) depende solo de este contrato, nunca del codigo interno del programa que lo produce.",
+  "type": "object",
+  "required": ["tabla_asd", "tabla_lrfd", "estados_carga"],
+  "properties": {
+    "tabla_asd": { "$ref": "#/definitions/tabla" },
+    "tabla_lrfd": { "$ref": "#/definitions/tabla" },
+    "estados_carga": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["nombre"],
+        "properties": {
+          "nombre": { "type": "string" },
+          "tipo": { "type": ["string", "null"] },
+          "definicion": { "type": "string" }
+        }
+      }
+    },
+    "estilo": {
+      "type": "object",
+      "properties": {
+        "color_encabezado": { "type": "string" }
+      }
+    }
+  },
+  "definitions": {
+    "tabla": {
+      "type": "object",
+      "required": ["columnas", "filas"],
+      "properties": {
+        "columnas": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "filas": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": { "type": ["string", "number", "null"] }
+          }
+        }
+      }
+    }
+  }
+}

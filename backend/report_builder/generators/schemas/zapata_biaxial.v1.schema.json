@@ -1,0 +1,97 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "zapata_biaxial v1",
+  "description": "Contrato del informe del modulo Zapatas biaxiales. Los numeros van crudos (m, tonf, tonf·m, tonf/m², grados); el generador (generators/zapata_biaxial.py) les da formato segun docs/formato_reporte_docx.md.",
+  "type": "object",
+  "required": ["fundaciones"],
+  "properties": {
+    "titulo": { "type": "string" },
+    "generado_en": { "type": "string" },
+    "fundaciones": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["nombre", "geometria", "cargas"],
+        "properties": {
+          "nombre": { "type": "string" },
+          "geometria": {
+            "type": "object",
+            "properties": {
+              "Lx": { "type": "number" },
+              "Ly": { "type": "number" },
+              "hz": { "type": "number" },
+              "hr": { "type": "number" },
+              "Lpx": { "type": "number" },
+              "Lpy": { "type": "number" },
+              "hp": { "type": "number" },
+              "eix": { "type": "number" },
+              "eiy": { "type": "number" }
+            }
+          },
+          "materiales": {
+            "type": "object",
+            "properties": {
+              "gamma_hormigon": { "type": "number" },
+              "gamma_suelo": { "type": "number" },
+              "phi": { "type": "number" },
+              "sigma_adm_e": { "type": "number" },
+              "sigma_adm_d": { "type": "number" }
+            }
+          },
+          "factores": {
+            "type": "object",
+            "properties": {
+              "FS_deslizamiento_e": { "type": "number" },
+              "FS_deslizamiento_d": { "type": "number" },
+              "FS_volcamiento_e": { "type": "number" },
+              "FS_volcamiento_d": { "type": "number" },
+              "porc_comp_estatico": { "type": "number" },
+              "porc_comp_dinamico": { "type": "number" },
+              "considerar_empuje_pasivo": { "type": "boolean" },
+              "factor_reduccion_pasivo": { "type": "number" }
+            }
+          },
+          "cargas": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["caso"],
+              "properties": {
+                "caso": { "type": "string" },
+                "output_case": { "type": "string" },
+                "P": { "type": "number" },
+                "Vx": { "type": "number" },
+                "Vy": { "type": "number" },
+                "Mx": { "type": "number" },
+                "My": { "type": "number" },
+                "region": { "type": "string" },
+                "sigma_max": { "type": ["number", "null"] },
+                "sigma_adm": { "type": ["number", "null"] },
+                "ratio_sigma": { "type": ["number", "null"] },
+                "area_comprimida": { "type": ["number", "null"] },
+                "porc_comp_min": { "type": ["number", "null"] },
+                "fsd": { "type": ["number", "null"] },
+                "fsd_req": { "type": ["number", "null"] },
+                "fsv_x": { "type": ["number", "null"] },
+                "fsv_y": { "type": ["number", "null"] },
+                "fsv_req": { "type": ["number", "null"] },
+                "cumple": { "type": "boolean" }
+              }
+            }
+          },
+          "gobernante": { "type": ["integer", "null"] },
+          "figuras": {
+            "type": "object",
+            "description": "Nombres de archivo (PNG, hermanos del JSON) de la planta y la elevacion de la combinacion gobernante.",
+            "properties": {
+              "planta": { "type": "string" },
+              "elevacion": { "type": "string" }
+            }
+          },
+          "analizada": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}

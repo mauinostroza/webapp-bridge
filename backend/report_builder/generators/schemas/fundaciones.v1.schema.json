@@ -1,0 +1,103 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "fundaciones v1",
+  "description": "Contrato del JSON de salida del modulo 'Fundaciones SAP2000'. El generador (generators/fundaciones.py) depende SOLO de la seccion resumen_reporte.modulos de este JSON (los 5 modulos de verificacion resumidos: deslizamiento, nodos levantados, base reactions, asentamientos y presion de contacto), nunca del codigo interno del modulo SAP2000 que lo produce.",
+  "type": "object",
+  "required": ["resumen_reporte"],
+  "properties": {
+    "nodos_levantados": {
+      "type": "object",
+      "description": "Contexto del analisis (se usa para el encabezado/generalidades).",
+      "properties": {
+        "nombre_modelo_sap": { "type": "string" },
+        "phi": { "type": "number" },
+        "fs_deslizamiento_e": { "type": "number" },
+        "fs_deslizamiento_d": { "type": "number" },
+        "fundaciones": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["nombre"],
+            "properties": { "id": { "type": "string" }, "nombre": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "resumen_reporte": {
+      "type": "object",
+      "required": ["generado_en", "modulos"],
+      "properties": {
+        "generado_en": { "type": "string", "description": "ISO timestamp de generacion del resumen." },
+        "paleta_estado": {
+          "type": "object",
+          "description": "Colores de severidad exactos usados por la app 'Fundaciones SAP2000' - se reutilizan tal cual en el .docx para mantener consistencia visual entre lo que el usuario ve en pantalla y lo que recibe impreso.",
+          "properties": {
+            "ok_texto": { "type": "string", "description": "Color de texto (hex) para valores en estado 'ok'." },
+            "advertencia_texto": { "type": "string", "description": "Color de texto (hex) para valores en estado 'rev'/'warn'/'advertencia'." },
+            "error_texto": { "type": "string", "description": "Color de texto (hex) para valores en estado 'error'." },
+            "escala_ratio": {
+              "type": "array",
+              "description": "4 colores (hex), de mejor a peor, para el fondo de fila de 'filas_criticas' segun el ratio: <0.7, <0.9, <=1.0, >1.0.",
+              "items": { "type": "string" },
+              "minItems": 4,
+              "maxItems": 4
+            }
+          }
+        },
+        "modulos": {
+          "type": "object",
+          "properties": {
+            "deslizamiento": { "$ref": "#/definitions/resumen_modulo" },
+            "nodos_levantados": { "$ref": "#/definitions/resumen_modulo" },
+            "base_reactions": { "$ref": "#/definitions/resumen_modulo" },
+            "asentamientos": { "$ref": "#/definitions/resumen_modulo" },
+            "presion_contacto": { "$ref": "#/definitions/resumen_modulo" }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "resumen_modulo": {
+      "type": ["object", "null"],
+      "description": "Resumen de un modulo de verificacion. Puede ser null si el modulo no aplica / no se evaluo.",
+      "properties": {
+        "titulo": { "type": "string" },
+        "columna_metrica": { "type": "string", "description": "Nombre de la metrica principal (FS, % comprimido, H max Ton, U3 min, |P| max)." },
+        "etiqueta_historial": { "type": "string" },
+        "fecha_historial": { "type": "string" },
+        "valores": {
+          "type": "array",
+          "description": "Filas [etiqueta, valor, estado] del resumen global del modulo, mostradas como callouts destacados. estado: 'ok' | 'error' | 'rev' | 'warn' | 'advertencia' | null ('rev'/'warn'/'advertencia' se tratan igual, como advertencia).",
+          "items": {
+            "type": "array",
+            "items": [ { "type": "string" }, { "anyOf": [ { "type": "string" }, { "type": "number" }, { "type": "null" } ] }, { "anyOf": [ { "type": "string" }, { "type": "null" } ] } ]
+          }
+        },
+        "filas_criticas": {
+          "type": "array",
+          "description": "Filas criticas por fundacion: [fundacion, combinacion, valor_metrica, ratio]. ratio puede superar 1.0 (>1 = no cumple); null = sin colorear.",
+          "items": {
+            "type": "array",
+            "items": [ { "type": "string" }, { "type": "string" }, { "anyOf": [ { "type": "string" }, { "type": "number" } ] }, { "anyOf": [ { "type": "number" }, { "type": "null" } ] } ]
+          }
+        },
+        "imagenes": {
+          "type": "array",
+          "description": "Imagenes de diagrama del modulo (solo nodos_levantados, asentamientos, presion_contacto). Ausente o vacio: sin imagenes disponibles.",
+          "items": {
+            "type": "object",
+            "required": ["ruta", "fundacion", "combinacion", "valor"],
+            "properties": {
+              "ruta": { "type": "string", "description": "Ruta relativa a la carpeta donde vive el .json del proyecto." },
+              "fundacion": { "type": "string" },
+              "combinacion": { "type": "string" },
+              "valor": { "type": "string" },
+              "alto_contraste": { "type": "boolean", "description": "Solo en entradas de nodos_levantados: escala de color fija 0-0.001mm invertida." }
+            }
+          }
+        }
+      }
+    }
+  }
+}

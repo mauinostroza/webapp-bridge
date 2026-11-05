@@ -1,0 +1,117 @@
+{
+  "nodos_levantados": {
+    "nombre": "Fundaciones - Nodos levantados",
+    "nombre_modelo_sap": "FUNDACION TR2 v03.1 CLASH.sdb",
+    "phi": 35.0,
+    "fs_deslizamiento_e": 1.3,
+    "fs_deslizamiento_d": 1.3,
+    "fundaciones": [
+      { "id": "9b1e4b05-4bd3-496b-b477-b38fd772d0ee", "nombre": "F-01", "nodos": ["7", "30"], "shells": ["77", "78"] },
+      { "id": "2a1b857d-17d8-4a2c-b345-c0ab3c9f4e06", "nombre": "F-02", "nodos": ["8", "16"], "shells": ["13", "18"] }
+    ]
+  },
+  "section_cuts": { "nombre": "Fundaciones - Diseño de secciones", "cuts": [] },
+  "cargas_nodales": { "nombre": "Cargas nodales", "grupos": [], "filas_actuales": [] },
+  "esquemas": { "nombre": "Fundaciones - Esquemas guardados", "esquemas": [] },
+  "resumen_reporte": {
+    "generado_en": "2026-08-03T22:35:20",
+    "paleta_estado": {
+      "ok_texto": "#3B6D11",
+      "advertencia_texto": "#854F0B",
+      "error_texto": "#A32D2D",
+      "escala_ratio": ["#639922", "#8FB33A", "#D69E2E", "#E24B4A"]
+    },
+    "modulos": {
+      "deslizamiento": {
+        "titulo": "Deslizamiento",
+        "columna_metrica": "FS",
+        "etiqueta_historial": "20260803_2228",
+        "fecha_historial": "2026-08-03 22:28:19",
+        "valores": [
+          ["FS mínimo global", "1.33", "ok"],
+          ["Grupos que no cumplen", "0", "ok"],
+          ["Combinación crítica", "ASD5.02", null]
+        ],
+        "filas_criticas": [
+          ["F-01", "ASD5.02", "1.33", 0.9791436804305528],
+          ["F-02", "ASD5.03", "2.85", 0.455915285391358]
+        ]
+      },
+      "nodos_levantados": {
+        "titulo": "Nodos levantados",
+        "columna_metrica": "% comprimido",
+        "etiqueta_historial": "20260803_2228",
+        "fecha_historial": "2026-08-03 22:28:15",
+        "valores": [
+          ["% mínimo comprimido", "100.0%", "ok"],
+          ["Grupos evaluados", "2", null],
+          ["Combinación crítica", "ASD1.01", null]
+        ],
+        "filas_criticas": [
+          ["F-01", "ASD1.01", "100.0%", 0.0],
+          ["F-02", "ASD1.01", "100.0%", 0.0]
+        ],
+        "imagenes": [
+          {
+            "ruta": "img_test.png",
+            "fundacion": "F-01",
+            "combinacion": "ASD1.01",
+            "valor": "100.0%",
+            "alto_contraste": true
+          },
+          {
+            "ruta": "no_existe.png",
+            "fundacion": "F-02",
+            "combinacion": "ASD1.01",
+            "valor": "100.0%"
+          }
+        ]
+      },
+      "base_reactions": {
+        "titulo": "Base Reactions",
+        "columna_metrica": "H máx. (Ton)",
+        "etiqueta_historial": "20260803_2228",
+        "fecha_historial": "2026-08-03 22:28:22",
+        "valores": [
+          ["ΣFZ máximo (Ton)", "15.33", null],
+          ["H máximo (Ton)", "3.09", null],
+          ["Combinación crítica", "ASD2.02", null]
+        ],
+        "filas_criticas": [
+          ["F-01", "ASD2.02", "3.09", 1.0],
+          ["F-02", "ASD2.03", "1.42", 0.45970868070150905]
+        ]
+      },
+      "asentamientos": {
+        "titulo": "Asentamientos",
+        "columna_metrica": "U3 mín.",
+        "etiqueta_historial": "20260803_2228",
+        "fecha_historial": "2026-08-03 22:28:26",
+        "valores": [
+          ["U3 mínimo", "-0.002475", null],
+          ["U3 máximo", "-0.000235", null],
+          ["Combinación crítica", "ASD2.01", null]
+        ],
+        "filas_criticas": [
+          ["F-02", "ASD2.01", "-0.002475", 1.0],
+          ["F-01", "ASD2.03", "-0.001379", 0.5569163722858246]
+        ]
+      },
+      "presion_contacto": {
+        "titulo": "Presión de contacto",
+        "columna_metrica": "|P| máx.",
+        "etiqueta_historial": "20260803_2228",
+        "fecha_historial": "2026-08-03 22:28:30",
+        "valores": [
+          ["Presión máxima |P|", "12.3800", null],
+          ["Presión mínima |P|", "1.1700", null],
+          ["Combinación crítica", "ASD2.01", null]
+        ],
+        "filas_criticas": [
+          ["F-02", "ASD2.01", "12.3800", 1.15],
+          ["F-01", "ASD2.03", "6.8900", 0.5565428109854603]
+        ]
+      }
+    }
+  }
+}

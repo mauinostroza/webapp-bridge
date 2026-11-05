@@ -1,0 +1,110 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "sulzberger v1",
+  "description": "Contrato del informe del programa \"Sulzberger\" (fundaciones de postes por el método Sulzberger y muerto de anclaje, CIGRE TB 606 / C1.21). El JSON lo arma la página y lo sube al proyecto como sulzberger.json; no lleva imágenes. Un infinito viaja como \"inf\"; nunca NaN ni Infinity. El generador (generators/sulzberger.py) depende solo de este contrato.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["titulo", "fecha", "entrada", "fundacion", "muerto", "cumple_global"],
+  "definitions": {
+    "numero": { "type": ["number", "string", "null"] },
+    "mapaNumeros": {
+      "type": "object",
+      "additionalProperties": { "type": "number" }
+    },
+    "errores": { "type": "array", "items": { "type": "string" } },
+    "eje": {
+      "type": "object",
+      "required": [
+        "eje", "Pu", "Vu", "Mu", "Heq", "beta", "alpha", "tan_xi", "WL", "Ms", "ML", "Mb", "Mr",
+        "FS_volcamiento", "p1", "p2", "p3", "FU_p1", "FU_p2", "FU_p3",
+        "cumple_FS", "cumple_xi", "cumple_p1", "cumple_p2", "cumple_p3"
+      ],
+      "properties": {
+        "eje": { "type": "string" },
+        "Pu": { "$ref": "#/definitions/numero" },
+        "Vu": { "$ref": "#/definitions/numero" },
+        "Mu": { "$ref": "#/definitions/numero" },
+        "Heq": { "$ref": "#/definitions/numero" },
+        "beta": { "$ref": "#/definitions/numero" },
+        "alpha": { "$ref": "#/definitions/numero" },
+        "tan_xi": { "$ref": "#/definitions/numero" },
+        "WL": { "$ref": "#/definitions/numero" },
+        "Ms": { "$ref": "#/definitions/numero" },
+        "ML": { "$ref": "#/definitions/numero" },
+        "Mb": { "$ref": "#/definitions/numero" },
+        "Mr": { "$ref": "#/definitions/numero" },
+        "FS_volcamiento": { "$ref": "#/definitions/numero" },
+        "p1": { "$ref": "#/definitions/numero" },
+        "p2": { "$ref": "#/definitions/numero" },
+        "p3": { "$ref": "#/definitions/numero" },
+        "FU_p1": { "$ref": "#/definitions/numero" },
+        "FU_p2": { "$ref": "#/definitions/numero" },
+        "FU_p3": { "$ref": "#/definitions/numero" },
+        "cumple_FS": { "type": "boolean" },
+        "cumple_xi": { "type": "boolean" },
+        "cumple_p1": { "type": "boolean" },
+        "cumple_p2": { "type": "boolean" },
+        "cumple_p3": { "type": "boolean" }
+      }
+    }
+  },
+  "properties": {
+    "schema_version": { "type": "integer", "enum": [1] },
+    "titulo": { "type": "string" },
+    "fecha": { "type": "string" },
+    "criterios": { "$ref": "#/definitions/mapaNumeros" },
+    "entrada": {
+      "type": "object",
+      "required": ["cargas", "poste", "suelo", "fundacion", "xi_grados", "muerto"],
+      "properties": {
+        "cargas": { "$ref": "#/definitions/mapaNumeros" },
+        "poste": { "$ref": "#/definitions/mapaNumeros" },
+        "suelo": { "$ref": "#/definitions/mapaNumeros" },
+        "fundacion": { "$ref": "#/definitions/mapaNumeros" },
+        "xi_grados": { "type": "number" },
+        "muerto": { "$ref": "#/definitions/mapaNumeros" }
+      }
+    },
+    "fundacion": {
+      "type": "object",
+      "required": ["Hf", "t", "Vex", "Vfund", "Wfund", "eje_fuerte", "eje_debil", "cumple_global", "errores"],
+      "properties": {
+        "Hl": { "$ref": "#/definitions/numero" },
+        "Hf": { "$ref": "#/definitions/numero" },
+        "t": { "$ref": "#/definitions/numero" },
+        "Vex": { "$ref": "#/definitions/numero" },
+        "Vfund": { "$ref": "#/definitions/numero" },
+        "Wfund": { "$ref": "#/definitions/numero" },
+        "eje_fuerte": { "$ref": "#/definitions/eje" },
+        "eje_debil": { "$ref": "#/definitions/eje" },
+        "cumple_global": { "type": "boolean" },
+        "errores": { "$ref": "#/definitions/errores" }
+      }
+    },
+    "muerto": {
+      "type": "object",
+      "required": ["Fh", "Fv", "Wm", "hm", "Hm", "beta", "Kp", "Ep", "Rx", "Ry", "Rm", "FSm", "FS_min", "cumple", "errores"],
+      "properties": {
+        "Fh": { "$ref": "#/definitions/numero" },
+        "Fv": { "$ref": "#/definitions/numero" },
+        "Wm": { "$ref": "#/definitions/numero" },
+        "hm": { "$ref": "#/definitions/numero" },
+        "Hm": { "$ref": "#/definitions/numero" },
+        "beta": { "$ref": "#/definitions/numero" },
+        "W_cuña": { "$ref": "#/definitions/numero" },
+        "N_cuña": { "$ref": "#/definitions/numero" },
+        "T_cuña": { "$ref": "#/definitions/numero" },
+        "Kp": { "$ref": "#/definitions/numero" },
+        "Ep": { "$ref": "#/definitions/numero" },
+        "Rx": { "$ref": "#/definitions/numero" },
+        "Ry": { "$ref": "#/definitions/numero" },
+        "Rm": { "$ref": "#/definitions/numero" },
+        "FSm": { "$ref": "#/definitions/numero" },
+        "FS_min": { "$ref": "#/definitions/numero" },
+        "cumple": { "type": "boolean" },
+        "errores": { "$ref": "#/definitions/errores" }
+      }
+    },
+    "cumple_global": { "type": "boolean" }
+  }
+}

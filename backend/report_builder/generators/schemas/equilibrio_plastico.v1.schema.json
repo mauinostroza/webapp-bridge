@@ -1,0 +1,369 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "equilibrio_plastico v1",
+  "description": "Contrato del informe del programa \"Equilibrio plástico\" (diagonales de arriostramiento, NCh2369). Lo calcula el servidor (POST /equilibrio/reporte) a partir del proyecto y de los grupos de diseño y se sube al proyecto como equilibrio_plastico.json; no lleva imágenes (el esquema del marco no se incluye). Unidades: kgf/cm², tonf, tonf·m, cm², m y radianes. Nunca NaN ni Infinity. Los niveles van de la cima a la base (nivel 1 = base). El generador (generators/equilibrio_plastico.py) depende solo de este contrato.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "titulo",
+    "fecha",
+    "proyecto",
+    "niveles",
+    "nivel_critico",
+    "resumen",
+    "advertencias"
+  ],
+  "definitions": {
+    "numero_o_nulo": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "advertencia": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "severidad",
+        "mensaje"
+      ],
+      "properties": {
+        "severidad": {
+          "type": "string",
+          "enum": [
+            "error",
+            "advertencia",
+            "info"
+          ]
+        },
+        "mensaje": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "properties": {
+    "titulo": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "fecha": {
+      "type": "string"
+    },
+    "proyecto": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nombre",
+        "tipo_marco",
+        "n_levels",
+        "Fy",
+        "Ry",
+        "Fye",
+        "L",
+        "metodo",
+        "notas"
+      ],
+      "properties": {
+        "nombre": {
+          "type": "string"
+        },
+        "tipo_marco": {
+          "type": "string",
+          "enum": [
+            "X",
+            "V (Chevron)",
+            "V invertida"
+          ]
+        },
+        "n_levels": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "Fy": {
+          "$ref": "#/definitions/numero_o_nulo"
+        },
+        "Ry": {
+          "$ref": "#/definitions/numero_o_nulo"
+        },
+        "Fye": {
+          "$ref": "#/definitions/numero_o_nulo"
+        },
+        "L": {
+          "$ref": "#/definitions/numero_o_nulo"
+        },
+        "metodo": {
+          "type": "string",
+          "enum": [
+            "Inelástico (Z=1)",
+            "Nominal (Z=0)"
+          ]
+        },
+        "notas": {
+          "type": "string"
+        }
+      }
+    },
+    "niveles": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "nivel",
+          "Ag",
+          "Fe",
+          "H",
+          "Tdis",
+          "qgrav",
+          "Fcre",
+          "theta",
+          "alpha",
+          "Pne",
+          "Pn",
+          "Tye",
+          "Tn",
+          "Pbr",
+          "May",
+          "Max_unb",
+          "Pa",
+          "Mgrav",
+          "Max",
+          "Pa_col",
+          "Pgrav_model",
+          "Pa_column_total"
+        ],
+        "properties": {
+          "nivel": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "Ag": {
+            "$ref": "#/definitions/numero_o_nulo"
+          },
+          "Fe": {
+            "$ref": "#/definitions/numero_o_nulo"
+          },
+          "H": {
+            "$ref": "#/definitions/numero_o_nulo"
+          },
+          "Tdis": {
+            "$ref": "#/definitions/numero_o_nulo"
+          },
+          "qgrav": {
+            "$ref": "#/definitions/numero_o_nulo"
+          },
+          "Fcre": {
+            "$ref": "#/definitions/numero_o_nulo"
+          },
+          "theta": {
+            "$ref": "#/definitions/numero_o_nulo"
+          },
+          "alpha": {
+            "$ref": "#/definitions/numero_o_nulo"
+          },
+          "Pne": {
+            "$ref": "#/definitions/numero_o_nulo"
+          },
+          "Pn": {
+            "$ref": "#/definitions/numero_o_nulo"
+          },
+          "Tye": {
+            "$ref": "#/definitions/numero_o_nulo"
+          },
+          "Tn": {
+            "$ref": "#/definitions/numero_o_nulo"
+          },
+          "Pbr": {
+            "$ref": "#/definitions/numero_o_nulo"
+          },
+          "May": {
+            "$ref": "#/definitions/numero_o_nulo"
+          },
+          "Max_unb": {
+            "$ref": "#/definitions/numero_o_nulo"
+          },
+          "Pa": {
+            "$ref": "#/definitions/numero_o_nulo"
+          },
+          "Mgrav": {
+            "$ref": "#/definitions/numero_o_nulo"
+          },
+          "Max": {
+            "$ref": "#/definitions/numero_o_nulo"
+          },
+          "Pa_col": {
+            "$ref": "#/definitions/numero_o_nulo"
+          },
+          "Pgrav_model": {
+            "$ref": "#/definitions/numero_o_nulo"
+          },
+          "Pa_column_total": {
+            "$ref": "#/definitions/numero_o_nulo"
+          }
+        }
+      }
+    },
+    "nivel_critico": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "resumen": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "Fye",
+        "critical_level",
+        "max_Pa_column_total"
+      ],
+      "properties": {
+        "Fye": {
+          "$ref": "#/definitions/numero_o_nulo"
+        },
+        "critical_level": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "max_Pa_column_total": {
+          "$ref": "#/definitions/numero_o_nulo"
+        }
+      }
+    },
+    "advertencias": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/advertencia"
+      }
+    },
+    "grupos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "nombre",
+          "seccion",
+          "Fye",
+          "Fcre",
+          "tn_cap",
+          "pn_cap",
+          "estado",
+          "miembro_critico",
+          "miembros",
+          "advertencias"
+        ],
+        "properties": {
+          "nombre": {
+            "type": "string"
+          },
+          "seccion": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "Ag",
+              "Fe"
+            ],
+            "properties": {
+              "Ag": {
+                "$ref": "#/definitions/numero_o_nulo"
+              },
+              "Fe": {
+                "$ref": "#/definitions/numero_o_nulo"
+              }
+            }
+          },
+          "Fye": {
+            "$ref": "#/definitions/numero_o_nulo"
+          },
+          "Fcre": {
+            "$ref": "#/definitions/numero_o_nulo"
+          },
+          "tn_cap": {
+            "$ref": "#/definitions/numero_o_nulo"
+          },
+          "pn_cap": {
+            "$ref": "#/definitions/numero_o_nulo"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "cumple",
+              "no cumple"
+            ]
+          },
+          "miembro_critico": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "miembros": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "label",
+                "Tn_req",
+                "Pn_req",
+                "H",
+                "L",
+                "theta",
+                "ok",
+                "margin_Tn",
+                "margin_Pn"
+              ],
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "Tn_req": {
+                  "$ref": "#/definitions/numero_o_nulo"
+                },
+                "Pn_req": {
+                  "$ref": "#/definitions/numero_o_nulo"
+                },
+                "H": {
+                  "$ref": "#/definitions/numero_o_nulo"
+                },
+                "L": {
+                  "$ref": "#/definitions/numero_o_nulo"
+                },
+                "theta": {
+                  "$ref": "#/definitions/numero_o_nulo"
+                },
+                "margin_Tn": {
+                  "$ref": "#/definitions/numero_o_nulo"
+                },
+                "margin_Pn": {
+                  "$ref": "#/definitions/numero_o_nulo"
+                },
+                "ok": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "advertencias": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/advertencia"
+            }
+          }
+        }
+      }
+    },
+    "advertencias_generales": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/advertencia"
+      }
+    }
+  }
+}

@@ -1,0 +1,39 @@
+# Formato y linting del backend. Ejecutar: ruff format . && ruff check .
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+extend-exclude = ["web", "var"]
+
+[tool.ruff.lint]
+# Conjunto deliberadamente acotado: errores reales y limpieza segura,
+# sin reglas de estilo que discutan con el formateador.
+select = ["E4", "E7", "E9", "F", "I", "UP", "B"]
+ignore = [
+    "B008",   # Depends(...) en argumentos por defecto es el idioma de FastAPI
+    "E741",   # I, R y similares son nomenclatura de norma (importancia sismica,
+              # factor de reduccion); renombrarlos alejaria el codigo del texto legal
+    "UP042",  # class X(str, Enum) es deliberado: StrEnum cambia el resultado de str()
+              # y estas clases se serializan a JSON
+    "B905",   # zip(..., strict=) cambia la conducta ante longitudes distintas;
+              # revisar caso por caso, no de forma masiva
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = ["F401"]
+"tests/**" = ["E402", "F841"]
+"backend/report_builder/tests/**" = ["E402", "F841"]
+"bridge/sap2000_agent.py" = ["E402"]
+"bridge/viewer/**" = ["F401", "I001", "UP017", "UP035", "UP037", "B904", "B023"]
+"tests/viewer/**" = ["F401", "I001", "E701", "E702"]
+"bridge/cad_com_live.py" = ["UP006", "UP007", "UP009", "UP015", "UP031", "UP032", "UP035", "UP037", "UP045", "F401", "F841", "I001", "E401", "E701", "E702", "E731", "B006", "B007", "B904", "E501"]
+"bridge/cad_sap_link.py" = ["UP006", "UP007", "UP009", "UP015", "UP031", "UP032", "UP035", "UP037", "UP045", "F401", "F841", "I001", "E401", "E701", "E702", "E731", "B006", "B007", "B904", "E501"]
+
+[tool.ruff.format]
+quote-style = "preserve"
+exclude = [
+    "bridge/str2fund.py",
+    "bridge/viewer/**",
+    "tests/viewer/**",
+    "tests/test_bridge.py",
+    "tests/test_bridge_str2fund.py",
+]

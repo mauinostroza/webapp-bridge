@@ -1,0 +1,42 @@
+{
+  "routes": {
+    "POST /v1/sap/actions/cad/status": {
+      "keys": ["conectado", "programa", "version", "documento", "detalle"]
+    },
+    "POST /v1/sap/actions/cad/pick": {
+      "keys": ["x", "y"]
+    },
+    "POST /v1/sap/actions/cad/draw/begin": {
+      "keys": ["sesion", "programa", "documento"]
+    },
+    "POST /v1/sap/actions/cad/draw/batch": {
+      "keys": ["creadas", "omitidas", "errores"]
+    },
+    "POST /v1/sap/actions/cad/draw/end": {
+      "keys": ["documento", "creadas", "omitidas", "resumen"]
+    },
+    "POST /v1/sap/actions/cad/sap/groups": {
+      "keys": ["grupos"]
+    },
+    "POST /v1/sap/actions/cad/sap/foundation/start": {
+      "keys": ["job"]
+    },
+    "POST /v1/sap/actions/cad/sap/foundation/status": {
+      "keys": ["estado", "etapa", "hechas", "total", "transcurrido_s", "resultado", "error"],
+      "opcionales": ["resultado", "error"],
+      "anidados": {
+        "resultado": {
+          "formato": "sap-crudo-v1",
+          "keys": ["formato", "grupo", "unidades", "areas", "nudos", "frames"],
+          "items": {
+            "areas": ["nombre", "seccion", "espesor", "pts_nombres", "pts_malla"],
+            "frames": ["frame", "punto_i", "punto_j", "seccion", "rect", "circ", "angulo_local"]
+          }
+        }
+      }
+    },
+    "POST /v1/sap/actions/cad/sap/foundation/cancel": {
+      "keys": ["cancelado"]
+    }
+  }
+}
