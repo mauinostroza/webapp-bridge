@@ -691,6 +691,26 @@
     },
     "POST /v1/sap/actions/esbelteces/import-groups-raw": {
       "keys": ["members"]
+    },
+    "GET /v1/sap/actions/viewer/foundations/groups": {
+      "keys": ["groups"],
+      "items": {
+        "groups": ["name", "joints", "shells"]
+      }
+    },
+    "POST /v1/sap/actions/viewer/foundations/results": {
+      "keys": [
+        "units",
+        "model",
+        "coordinates",
+        "reactions",
+        "displacements",
+        "soil_pressures",
+        "groups",
+        "model_locked",
+        "truncated",
+        "warnings"
+      ]
     }
   },
   "legado": {

@@ -598,9 +598,7 @@ def test_valor_unico_con_codigo_de_error_o_varios_datos_falla():
 @pytest.mark.parametrize("n", [None, 0])
 def test_frame_force_sin_resultados_avisa_y_no_lanza(n):
     res = leer_fuerzas(FakeAcero(n_forzado=n), ["V1"], ["U1"])
-    assert any(
-        "Barra 'V1': SAP2000 no devolvió resultados (¿modelo analizado?" in w for w in res["warnings"]
-    )
+    assert any("Barra 'V1': SAP2000 no devolvió resultados (¿modelo analizado?" in w for w in res["warnings"])
     assert res["frames"][0]["combinaciones"] == []
 
 
@@ -618,3 +616,51 @@ def test_frame_force_con_pocas_salidas_da_error_con_tipos():
 def test_frame_force_con_n_no_numerico_da_error():
     with pytest.raises(SapAceroFuerzasError, match="no es numérico"):
         _filas_barra(FakeAcero(n_forzado="abc"), "V1", {"U1"})
+
+
+# ---------------------------------------------------------------------------
+# por_estacion: Cb de cada paso y una demanda por estación
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def barra_envolvente(monkeypatch):
+    xs = (0.0, 1.5, 3.0, 4.5, 6.0)
+    maximo = [("Max", x, -5.0 - x, 2.0, 1.0, 0.5, 0.0, 10.0) for x in xs]  # momento constante: Cb = 1
+    minimo = [("Min", x, 7.0, -3.0, -1.0, -0.5, 0.0, -50.0 * (1 - ((x - 3.0) / 3.0) ** 2)) for x in xs]
+    monkeypatch.setitem(DATA, "ENV", {"U1": maximo + minimo})
+    monkeypatch.setitem(ENDPOINTS, "ENV", ((0.0, 0.0, 0.0), (6.0, 0.0, 0.0)))
+    monkeypatch.setitem(SECCION, "ENV", "W1")
+
+
+def test_por_estacion_no_cambia_la_respuesta_por_defecto(barra_envolvente):
+    base = leer_fuerzas(FakeAcero(), ["ENV"], ["U1"])
+    assert "demandas_estacion" not in base
+    assert "cb_pasos" not in base["demandas"][0]
+    con = leer_fuerzas(FakeAcero(), ["ENV"], ["U1"], por_estacion=True)
+    sin_nuevos = {k: v for k, v in con.items() if k != "demandas_estacion"}
+    for d in sin_nuevos["demandas"]:
+        d.pop("cb_pasos")
+    assert sin_nuevos == base
+
+
+def test_por_estacion_devuelve_cb_de_max_y_min_por_separado(barra_envolvente):
+    res = leer_fuerzas(FakeAcero(), ["ENV"], ["U1"], por_estacion=True)
+    pasos = {p["step"]: p["Cb"] for p in res["demandas"][0]["cb_pasos"]}
+    assert pasos["Max"] == pytest.approx(1.0)  # momento constante
+    assert pasos["Min"] > 1.0  # parábola
+    assert res["demandas"][0]["Cb"] == pytest.approx(min(pasos.values()))
+
+
+def test_demanda_por_estacion_no_mezcla_estaciones_ni_pasos(barra_envolvente):
+    res = leer_fuerzas(FakeAcero(), ["ENV"], ["U1"], por_estacion=True)
+    filas = res["demandas_estacion"]
+    assert len(filas) == 10  # 5 estaciones x 2 pasos
+    e = next(f for f in filas if f["step"] == "Max" and f["x_m"] == pytest.approx(1.5))
+    assert (e["Pu_kN"], e["Tu_kN"]) == (pytest.approx(6.5), 0.0)  # P = -6.5 solo de esa estación y paso
+    assert e["Mux_kNm"] == pytest.approx(10.0)
+    assert e["Cb"] == pytest.approx(1.0)
+    m = next(f for f in filas if f["step"] == "Min" and f["x_m"] == pytest.approx(3.0))
+    assert (m["Pu_kN"], m["Tu_kN"]) == (0.0, pytest.approx(7.0))
+    assert m["Mux_kNm"] == pytest.approx(50.0)
+    assert m["Cb"] > 1.0

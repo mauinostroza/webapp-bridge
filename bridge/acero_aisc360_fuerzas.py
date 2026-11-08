@@ -481,6 +481,41 @@ def _demanda(
     }
 
 
+def _cb_pasos(filas: list[dict[str, Any]], longitud: float, regla: bool) -> list[dict[str, Any]]:
+    """Cb de cada paso (p. ej. Max y Min por separado) de una combinación, con su indicador de interpolación."""
+    fuerte, *_ = _ejes()
+    salida = []
+    for paso in dict.fromkeys(f["step"] for f in filas):
+        grupo = sorted((f for f in filas if f["step"] == paso), key=lambda f: f["x"])
+        cb, interpolado, forzado, _gap = cb_para_demanda(
+            [f["x"] for f in grupo], [f[fuerte] for f in grupo], longitud, regla=regla
+        )
+        salida.append({"step": paso, "Cb": cb, "interpolado": interpolado, "forzado": forzado})
+    return salida
+
+
+def _demanda_estacion(
+    barra: str, combo: str, paso: str, f: dict[str, Any], cb: float | None
+) -> dict[str, Any]:
+    """Demanda de UNA estación: solo las fuerzas de esa estación, caso y paso (sin mezclar estaciones)."""
+    fuerte, cortante_fuerte, debil, cortante_debil = _ejes()
+    pu, tu = _axiales([f["P"]])
+    return {
+        "frame": barra,
+        "combo": combo,
+        "step": paso,
+        "x_m": f["x"],
+        "Pu_kN": pu,
+        "Tu_kN": tu,
+        "Vux_kN": abs(f[cortante_fuerte]),
+        "Vuy_kN": abs(f[cortante_debil]),
+        "Mux_kNm": abs(f[fuerte]),
+        "Muy_kNm": abs(f[debil]),
+        "T_kNm": abs(f["T"]),
+        "Cb": cb,
+    }
+
+
 def _extremo(pares: Iterable[tuple[str, float]], mayor: bool) -> tuple[float, str]:
     """Valor máximo (o mínimo) y su combinación; en empate gana la primera."""
     mejor: tuple[str, float] | None = None
@@ -528,8 +563,13 @@ def leer_fuerzas(
     frames: list[str] | Literal["selected"],
     combos: list[str],
     estaciones: list[float] | None = None,
+    por_estacion: bool = False,
 ) -> dict[str, Any]:
     """Fuerzas de las barras para ``combos`` y sus demandas de diseño AISC 360-22.
+
+    Con ``por_estacion`` la respuesta añade (sin cambiar nada de lo anterior) ``cb_pasos`` en cada
+    demanda y ``demandas_estacion``: una demanda por estación, caso y paso con las fuerzas de esa
+    misma estación y el Cb de su paso.
 
     Las barras que no existen en el modelo se omiten con un aviso en ``warnings``;
     si ninguna existe, se responde con error. Una combinación o caso que no existe
@@ -587,6 +627,7 @@ def leer_fuerzas(
     frames_out: list[dict[str, Any]] = []
     demandas: list[dict[str, Any]] = []
     envolvente: list[dict[str, Any]] = []
+    demandas_estacion: list[dict[str, Any]] = []
     for barra, seccion, longitud, filas in leidas:
         longitud_medida = longitud is not None  # la regla de separación solo vale con L medida en SAP2000
         if longitud is None and filas:
@@ -625,9 +666,18 @@ def leer_fuerzas(
                     }
                 )
             if longitud is not None:
-                demandas_barra.append(
-                    _demanda(barra, combo, filas_c, longitud, advertencias, regla_separacion=longitud_medida)
+                demanda = _demanda(
+                    barra, combo, filas_c, longitud, advertencias, regla_separacion=longitud_medida
                 )
+                if por_estacion:
+                    pasos = _cb_pasos(filas_c, longitud, longitud_medida)
+                    demanda["cb_pasos"] = pasos
+                    cb_de = {p["step"]: p["Cb"] for p in pasos}
+                    for paso in cb_de:
+                        grupo = sorted((f for f in filas_c if f["step"] == paso), key=lambda f: f["x"])
+                        for f in _estaciones_seleccionadas(grupo, longitud, estaciones):
+                            demandas_estacion.append(_demanda_estacion(barra, combo, paso, f, cb_de[paso]))
+                demandas_barra.append(demanda)
         frames_out.append(
             {"frame": barra, "longitud_m": longitud, "seccion": seccion, "combinaciones": combinaciones_out}
         )
@@ -635,19 +685,20 @@ def leer_fuerzas(
         if demandas_barra:
             envolvente.append(_envolvente(barra, demandas_barra))
 
-    return _limpio(
-        {
-            "unidades": "kN-m",
-            "ejes": "locales 1-2-3",
-            "validado_con_sap": True,
-            "validado_con": VALIDADO_CON,
-            "validado_fecha": VALIDADO_FECHA,
-            "frames": frames_out,
-            "demandas": demandas,
-            "envolvente": envolvente,
-            "warnings": advertencias,
-        }
-    )
+    salida: dict[str, Any] = {
+        "unidades": "kN-m",
+        "ejes": "locales 1-2-3",
+        "validado_con_sap": True,
+        "validado_con": VALIDADO_CON,
+        "validado_fecha": VALIDADO_FECHA,
+        "frames": frames_out,
+        "demandas": demandas,
+        "envolvente": envolvente,
+        "warnings": advertencias,
+    }
+    if por_estacion:
+        salida["demandas_estacion"] = demandas_estacion
+    return _limpio(salida)
 
 
 # ---------------------------------------------------------------------------
@@ -659,6 +710,8 @@ class FuerzasBody(BaseModel):
     frames: list[str] | Literal["selected"]
     combos: list[str]
     estaciones: list[float] | None = None
+    # Opcional: añade cb_pasos y demandas_estacion; sin él la respuesta es idéntica a la de siempre.
+    por_estacion: bool = False
 
     @field_validator("frames")
     @classmethod
@@ -701,4 +754,8 @@ def install_routes(app: Any, call: Callable[[Callable[[Any], Any]], Any]) -> Non
     @app.post(f"{prefix}/fuerzas")
     def acero_fuerzas(body: FuerzasBody):
         with con_limite(LIMITE_COM_S):
-            return call(lambda model: leer_fuerzas(model, body.frames, body.combos, body.estaciones))
+            return call(
+                lambda model: leer_fuerzas(
+                    model, body.frames, body.combos, body.estaciones, body.por_estacion
+                )
+            )

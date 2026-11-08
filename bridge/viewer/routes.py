@@ -23,8 +23,9 @@ from typing import Any, Literal
 
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse, Response
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
+from bridge.viewer import foundations as fund
 from bridge.viewer.core import results as res
 from bridge.viewer.core import results_bulk as bulk
 from bridge.viewer.core.bridge import BridgeError, LocalBridge
@@ -51,6 +52,20 @@ class KApplyRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     nonce: str
     unlock: bool = False
+
+
+class FoundationGroup(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1, max_length=200)
+    joints: list[str] = Field(default_factory=list, max_length=20_000)
+    shells: list[str] = Field(default_factory=list, max_length=20_000)
+
+
+class FoundationResultsRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    groups: list[FoundationGroup] = Field(min_length=1, max_length=200)
+    cases: list[str] | None = Field(default=None, max_length=500)
+    combos: list[str] | None = Field(default=None, max_length=500)
 
 
 class ConnectRequest(BaseModel):
@@ -179,7 +194,9 @@ def install_routes(app: Any) -> None:
     @app.get(f"{PREFIJO}/results/area")
     async def results_area(case: str, component: str):
         return sin_cache(
-            await en_com(lambda c: conservando_seleccion(c.model, lambda: res.area_stress(c.model, case, component)))
+            await en_com(
+                lambda c: conservando_seleccion(c.model, lambda: res.area_stress(c.model, case, component))
+            )
         )
 
     @app.get(f"{PREFIJO}/results/displacements")
@@ -191,7 +208,30 @@ def install_routes(app: Any) -> None:
     @app.get(f"{PREFIJO}/results/frame/{{frame}}")
     async def results_frame(frame: str, case: str):
         return sin_cache(
-            await en_com(lambda c: conservando_seleccion(c.model, lambda: res.frame_forces(c.model, case, frame)))
+            await en_com(
+                lambda c: conservando_seleccion(c.model, lambda: res.frame_forces(c.model, case, frame))
+            )
+        )
+
+    async def en_com_sap(fn: Any) -> Any:
+        from bridge.sap2000_agent import SapComError
+
+        try:
+            return await en_com(fn)
+        except SapComError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    @app.get(f"{PREFIJO}/foundations/groups")
+    async def foundations_groups():
+        """Grupos de SAP2000 con sus nudos y shells (solo lectura)."""
+        return sin_cache(await en_com_sap(lambda c: fund.grupos(c.model)))
+
+    @app.post(f"{PREFIJO}/foundations/results")
+    async def foundations_results(body: FoundationResultsRequest):
+        """Resultados de fundaciones (Ton_m_C) de los grupos pedidos; no deja cambiada la selección de salida."""
+        grupos = [g.model_dump() for g in body.groups]
+        return sin_cache(
+            await en_com_sap(lambda c: fund.resultados(c.model, grupos, body.cases, body.combos))
         )
 
     # --- Resultados en bloque (solo lectura; ver core/results_bulk.py) ---------------
@@ -200,7 +240,9 @@ def install_routes(app: Any) -> None:
         return sin_cache(await en_com(lambda c: bulk.reactions(c.model, case)))
 
     @app.get(f"{PREFIJO}/results/frames")
-    async def results_frames(case: str, ids: str | None = None, limit: int | None = None, cursor: str | None = None):
+    async def results_frames(
+        case: str, ids: str | None = None, limit: int | None = None, cursor: str | None = None
+    ):
         return sin_cache(await en_com(lambda c: bulk.frames_block(c.model, case, ids, limit, cursor)))
 
     @app.get(f"{PREFIJO}/results/envelope")
