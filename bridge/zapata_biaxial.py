@@ -10,8 +10,11 @@ Rutas (``/v1/sap/actions/zapata-biaxial/``):
 - ``GET estado``, ``GET casos``: sólo lectura.
 - ``POST nodos``: nodos seleccionados (o, sin selección, los restringidos) con sus coordenadas.
   Sólo lectura; no usa ``SupportedPoints`` (el escritorio alteraba la selección del usuario).
-- ``POST reacciones``: marca los casos/combinaciones indicados para salida (cambia sólo la
-  selección de resultados) y lee ``Results.JointReact`` de los nodos, en tonf y m.
+- ``POST nodos`` con ``{"nodos": [...]}``: X, Y, Z de esos nodos (sin selección) y dispersión de cotas.
+- ``POST reacciones``: marca los casos/combinaciones indicados para salida, lee ``Results.JointReact``
+  de los nodos (tonf y m) y restaura la selección de salida del usuario. Última columna: StepNum;
+  CaseType sale de ``LoadCases.GetTypeOAPI_1`` (JointReact no lo devuelve).
+- ``POST reacciones`` con ``"sonda": true``: respuesta cruda de JointReact (envolventes, espectros, ejes).
 - ``POST exportar/preview``: comprueba, sin escribir, bloqueo del modelo y colisiones de nombres.
 - ``POST exportar/apply`` (``confirmed: true``): crea material, secciones, nodos, shells, pedestal,
   patrones, cargas y resortes del plan, y relee lo creado (los resortes no se releen: ver más abajo).
@@ -34,7 +37,8 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
+from contextlib import contextmanager
 from typing import Any
 
 from fastapi import HTTPException
@@ -49,7 +53,38 @@ MAX_NODOS_LECTURA = 500
 MAX_FILAS_REACCIONES = 50_000
 MAX_NODOS_ESCANEO = 20_000
 MAX_OBJETOS_PLAN = 25_000
-COLUMNAS_REACCIONES = ["Joint", "OutputCase", "CaseType", "StepType", "F1", "F2", "F3", "M1", "M2", "M3"]
+# StepNum va al final para no mover las columnas que ya consume la web.
+COLUMNAS_REACCIONES = [
+    "Joint",
+    "OutputCase",
+    "CaseType",
+    "StepType",
+    "F1",
+    "F2",
+    "F3",
+    "M1",
+    "M2",
+    "M3",
+    "StepNum",
+]
+# eLoadCaseType de la API (sin validar contra SAP2000 real; un código fuera de la tabla sale como «Tipo<n>»).
+_TIPOS_CASO = {
+    1: "LinStatic",
+    2: "NonStatic",
+    3: "Modal",
+    4: "LinRespSpec",
+    5: "LinModHist",
+    6: "NonModHist",
+    7: "LinDirHist",
+    8: "NonDirHist",
+    9: "Moving",
+    10: "Buckling",
+    11: "SteadyState",
+    12: "PSD",
+    13: "LinStatMultiStep",
+    14: "HyperStatic",
+}
+_TOL_ANGULO_DEG = 1e-6
 
 
 class ZapataBiaxialError(RuntimeError):
@@ -73,6 +108,58 @@ def estado(model: Any) -> dict[str, Any]:
 def casos(model: Any) -> dict[str, Any]:
     """Casos y combinaciones del modelo (los nombres decidirán ``CaseType`` en las reacciones)."""
     return pb.listar_cargas(model)
+
+
+def _tipo_de_caso(model: Any, nombre: str) -> str | None:
+    """Tipo real del caso (``LoadCases.GetTypeOAPI_1``); ``None`` si SAP no lo informa.
+
+    ``Results.JointReact`` no devuelve el tipo del caso (su cuarta columna es ``StepType``), así que se
+    consulta aparte.
+    """
+    try:
+        salidas = pb._salida(model.LoadCases.GetTypeOAPI_1(nombre), f"LoadCases.GetTypeOAPI_1({nombre!r})")
+    except Exception:
+        return None
+    codigo = next((x for x in salidas if pb._es_entero(x)), None)
+    if codigo is None:
+        return None
+    return _TIPOS_CASO.get(int(codigo), f"Tipo{int(codigo)}")
+
+
+def _ejes_locales_girados(model: Any, nodo: str) -> bool | None:
+    """``True`` si el nodo tiene ejes locales girados (o avanzados); ``None`` si no se pudieron leer."""
+    try:
+        salidas = pb._salida(model.PointObj.GetLocalAxes(nodo), f"PointObj.GetLocalAxes({nodo!r})")
+    except Exception:
+        return None
+    angulos = [float(x) for x in salidas if pb._es_numero(x)]
+    avanzado = any(x is True for x in salidas)
+    if len(angulos) < 3:
+        return None
+    return avanzado or any(abs(a) > _TOL_ANGULO_DEG for a in angulos[:3])
+
+
+@contextmanager
+def _seleccion_de_salida_acotada(
+    model: Any, casos_: list[str], combinaciones: list[str], avisos: list[str]
+) -> Iterator[None]:
+    """Marca los casos pedidos para salida y, al terminar, devuelve la selección que tenía el usuario."""
+    todos_casos, todas_combos = pb._nombres_de_carga(model)
+    previos_c, previos_k, desconocida = pb._seleccion_de_salida(model, todos_casos, todas_combos)
+    if desconocida:
+        avisos.append(
+            "SAP2000 no informó la selección de salida previa de algunos casos: no se puede restaurar "
+            "y queda la selección pedida. Revísela en SAP2000."
+        )
+    try:
+        pb._fijar_seleccion_de_salida(model, casos_, combinaciones)
+        yield
+    finally:
+        if not desconocida:
+            try:
+                pb._fijar_seleccion_de_salida(model, previos_c, previos_k)
+            except Exception as exc:
+                avisos.append(f"No se pudo restaurar la selección de salida de SAP2000: {exc}")
 
 
 def nodos(model: Any) -> dict[str, Any]:
@@ -109,6 +196,33 @@ def nodos(model: Any) -> dict[str, Any]:
     }
 
 
+def coordenadas(model: Any, nodos_: Sequence[str]) -> dict[str, Any]:
+    """Coordenadas (m) de nodos concretos, sin depender de la selección de SAP2000.
+
+    Incluye la dispersión de cotas (Z) del grupo para comprobar que la fundación es plana.
+    """
+    model = normalizar(model, destino_primero=False)
+    nombres = list(dict.fromkeys(nodos_))
+    existentes = set(pb._nombres(model.PointObj.GetNameList(), "PointObj.GetNameList"))
+    faltan = [n for n in nombres if n not in existentes]
+    if faltan:
+        raise ZapataBiaxialError(
+            f"Nodos que no existen en el modelo: {', '.join(faltan[:5])}.", code="nodo_desconocido"
+        )
+    with pb._unidades_tonf_m(model):
+        filas = [[n, *pb._coordenadas(model, n)] for n in nombres]
+    cotas = [f[3] for f in filas]
+    return {
+        "modelo": pb._nombre_modelo(model),
+        "unidades": "tonf-m",
+        "columns": ["Joint", "X", "Y", "Z"],
+        "data": filas,
+        "z_min": min(cotas),
+        "z_max": max(cotas),
+        "dispersion_z": max(cotas) - min(cotas),
+    }
+
+
 def reacciones(
     model: Any, nodos_: Sequence[str], casos_: Sequence[str], combinaciones: Sequence[str]
 ) -> dict[str, Any]:
@@ -123,18 +237,34 @@ def reacciones(
             f"Casos o combinaciones que no existen en el modelo: {', '.join(desconocidos[:5])}.",
             code="caso_desconocido",
         )
-    pb._fijar_seleccion_de_salida(model, list(casos_), list(combinaciones))
     combos = set(disponibles_combos)
     filas: list[list[Any]] = []
-    with pb._unidades_tonf_m(model):
+    avisos: list[str] = []
+    tipos: dict[str, str] = {}
+    sin_tipo: set[str] = set()
+    girados: list[str] = []
+    with (
+        _seleccion_de_salida_acotada(model, list(casos_), list(combinaciones), avisos),
+        pb._unidades_tonf_m(model),
+    ):
         for nodo in dict.fromkeys(nodos_):
+            if _ejes_locales_girados(model, nodo):
+                girados.append(nodo)
             for r in pb._reacciones_de_nodo(model, nodo):
                 nombre = r["load_name"]
+                if nombre not in tipos:
+                    if nombre in combos:
+                        tipos[nombre] = "Combination"
+                    else:
+                        tipo = _tipo_de_caso(model, nombre)
+                        if tipo is None:
+                            sin_tipo.add(nombre)
+                        tipos[nombre] = tipo or "LoadCase"
                 filas.append(
                     [
                         r["node"],
                         nombre,
-                        "Combination" if nombre in combos else "LoadCase",
+                        tipos[nombre],
                         r["step_type"],
                         r["Vx"],
                         r["Vy"],
@@ -142,6 +272,7 @@ def reacciones(
                         r["Mx"],
                         r["My"],
                         r["Mz"],
+                        r["step_num"],
                     ]
                 )
                 if len(filas) > MAX_FILAS_REACCIONES:
@@ -149,6 +280,17 @@ def reacciones(
                         f"Más de {MAX_FILAS_REACCIONES} filas de reacciones; reduzca nodos o casos.",
                         code="demasiadas_filas",
                     )
+    if sin_tipo:
+        avisos.append(
+            "SAP2000 no informó el tipo de algunos casos (se rotulan «LoadCase»): "
+            + ", ".join(sorted(sin_tipo)[:5])
+            + "."
+        )
+    if girados:
+        avisos.append(
+            "Nodos con ejes locales girados: " + ", ".join(girados[:10]) + ". Las reacciones se entregan "
+            "tal como las devuelve Results.JointReact; confirme con la sonda si vienen en ejes globales."
+        )
     if not filas:
         raise ZapataBiaxialError(
             "SAP2000 no devolvió reacciones. Ejecute el análisis y revise la selección de resultados.",
@@ -159,6 +301,65 @@ def reacciones(
         "unidades": "tonf-m",
         "columns": COLUMNAS_REACCIONES,
         "data": filas,
+        "avisos": avisos,
+        "nodos_ejes_locales": girados,
+    }
+
+
+def _plano(valor: Any) -> Any:
+    """Valor COM a JSON (sondas): secuencias recursivas, números y textos tal cual, el resto como texto."""
+    if isinstance(valor, (list, tuple)):
+        return [_plano(x) for x in valor]
+    if isinstance(valor, (bool, int, str)) or valor is None:
+        return valor
+    if isinstance(valor, float):
+        return valor if math.isfinite(valor) else str(valor)
+    return repr(valor)
+
+
+def sonda_joint_react(
+    model: Any, nodo: str, caso: str | None, combinacion: str | None, max_filas: int = 40
+) -> dict[str, Any]:
+    """Respuesta cruda de ``Results.JointReact`` de un nodo para un caso o combinación.
+
+    Pensada para diagnosticar sin acceso al equipo: forma de la respuesta, filas (p. ej. Max/Min de una
+    envolvente, pasos de un espectro), tipo del caso y ejes locales del nodo. Restaura la selección de salida.
+    """
+    model = normalizar(model, destino_primero=False)
+    disp_casos, disp_combos = pb._nombres_de_carga(model)
+    elegido = caso if caso is not None else combinacion
+    if elegido not in (disp_casos if caso is not None else disp_combos):
+        raise ZapataBiaxialError(f"«{elegido}» no existe en el modelo.", code="caso_desconocido")
+    avisos: list[str] = []
+    with (
+        _seleccion_de_salida_acotada(
+            model, [caso] if caso is not None else [], [combinacion] if combinacion is not None else [], avisos
+        ),
+        pb._unidades_tonf_m(model),
+    ):
+        crudo = model.Results.JointReact(nodo, 0)
+        try:
+            ejes = _plano(model.PointObj.GetLocalAxes(nodo))
+        except Exception as exc:
+            ejes = f"error: {exc}"
+        try:
+            tipo_combo = _plano(model.RespCombo.GetTypeOAPI(combinacion)) if combinacion else None
+        except Exception as exc:
+            tipo_combo = f"error: {exc}"
+    salidas = list(crudo) if isinstance(crudo, (list, tuple)) else [crudo]
+    return {
+        "modelo": pb._nombre_modelo(model),
+        "unidades": "tonf-m",
+        "nodo": nodo,
+        "caso": caso,
+        "combinacion": combinacion,
+        "n_salidas": len(salidas),
+        "tipos_salidas": [type(x).__name__ for x in salidas],
+        "salidas": [_plano(x)[:max_filas] if isinstance(x, (list, tuple)) else _plano(x) for x in salidas],
+        "tipo_caso": _tipo_de_caso(model, caso) if caso is not None else None,
+        "tipo_combinacion_raw": tipo_combo,
+        "ejes_locales_raw": ejes,
+        "avisos": avisos,
     }
 
 
@@ -372,6 +573,8 @@ class NodosBody(_Cuerpo):
 class ReaccionesBody(NodosBody):
     casos: list[str] = Field(default_factory=list, max_length=500)
     combinaciones: list[str] = Field(default_factory=list, max_length=500)
+    # Diagnóstico: respuesta cruda de JointReact del primer nodo y del primer caso (o combinación).
+    sonda: bool = False
 
     @field_validator("casos", "combinaciones")
     @classmethod
@@ -448,11 +651,23 @@ def install_routes(app: Any, call: Callable[[Callable[[Any], Any]], Any]) -> Non
         return call(casos)
 
     @app.post(f"{prefix}/nodos")
-    def zapata_nodos():
+    def zapata_nodos(body: NodosBody | None = None):
+        # Sin cuerpo: nodos seleccionados/restringidos. Con ``nodos``: coordenadas de esos nodos.
+        if body is not None:
+            return call(lambda model: coordenadas(model, body.nodos))
         return call(nodos)
 
     @app.post(f"{prefix}/reacciones")
     def zapata_reacciones(body: ReaccionesBody):
+        if body.sonda:
+            return call(
+                lambda model: sonda_joint_react(
+                    model,
+                    body.nodos[0],
+                    body.casos[0] if body.casos else None,
+                    None if body.casos else body.combinaciones[0],
+                )
+            )
         return call(lambda model: reacciones(model, body.nodos, body.casos, body.combinaciones))
 
     @app.post(f"{prefix}/exportar/preview")
