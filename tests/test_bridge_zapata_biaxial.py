@@ -90,7 +90,7 @@ class FakeZapata:
         self.units = 6
         self.Results = _Results(self)
         self.LoadCases = _Casos(("DEAD", "SX"))
-        self.RespCombo = _Lista(("U1", "U9"))
+        self.RespCombo = _Lista(("U1", "U9", "ASD1: D + L"))
         self.PointObj = _Puntos(giro)
 
     def GetPresentUnits(self):
@@ -263,3 +263,12 @@ def test_reacciones_sin_nodos_o_sin_casos_da_422():
 def test_estado_y_casos_http_cumplen_el_contrato():
     c = _cliente(FakeZapata())
     assert_matches_contract(CONTRATOS, f"GET {RAIZ}/estado", c.get(f"{RAIZ}/estado").json())
+
+
+def test_reacciones_http_acepta_combinacion_con_dos_puntos():
+    r = _cliente(FakeZapata()).post(
+        f"{RAIZ}/reacciones", json={"nodos": ["1"], "casos": ["DEAD"], "combinaciones": ["ASD1: D + L"]}
+    )
+    assert r.status_code == 200, r.text
+    assert {f[1] for f in r.json()["data"]} == {"DEAD", "ASD1: D + L"}
+    assert {f[2] for f in r.json()["data"]} == {"LoadCase", "Combination"}

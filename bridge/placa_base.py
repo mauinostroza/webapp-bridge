@@ -43,7 +43,7 @@ from typing import Any
 
 from pydantic import BaseModel, field_validator
 
-from bridge.actions import ActionValidationError, _valid_name, split_return
+from bridge.actions import ActionValidationError, _valid_combo_name, _valid_name, split_return
 from bridge.com_orden import normalizar
 from bridge.str2fund import Str2FundError, _parse_selection_flag
 
@@ -573,11 +573,13 @@ def resaltar_nodos(model: Any, nodos: Sequence[str]) -> dict[str, Any]:
 
 
 def _nombre_de_sap(valor: str, etiqueta: str) -> str:
+    combinacion = etiqueta == "combinaciones"  # SAP2000 admite «:» en combinaciones («ASD1: D + L»)
     try:
-        nombre = _valid_name(valor, etiqueta)
+        nombre = _valid_combo_name(valor, etiqueta) if combinacion else _valid_name(valor, etiqueta)
     except ActionValidationError as exc:
+        prohibidos = "/ \\ * ? \" < > |" if combinacion else "/ \\ : * ? \" < > |"
         raise ValueError(
-            f"'{etiqueta}' admite nombres de 1 a 128 caracteres sin / \\ : * ? \" < > | ni caracteres de control."
+            f"'{etiqueta}' admite nombres de 1 a 128 caracteres sin {prohibidos} ni caracteres de control."
         ) from exc
     if len(nombre) > MAX_LARGO_NOMBRE:
         raise ValueError(f"Un nombre de '{etiqueta}' supera {MAX_LARGO_NOMBRE} caracteres.")

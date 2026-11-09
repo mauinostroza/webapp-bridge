@@ -44,6 +44,7 @@ from bridge.actions import (
     _call_group_assignments,
     _get_name_list,
     _parse_group_assignments,
+    _valid_combo_name,
     _valid_name,
     _with_ton_m_c,
     load_cases_and_combos,
@@ -578,7 +579,7 @@ class ForcesBody(BaseModel):
     def combos_validos(cls, value: list[str]) -> list[str]:
         if len(value) > _MAX_ITEMS * 10:
             raise ValueError("combos must contain at most 5000 entries")
-        return [_valid_name(item, "combo") for item in value]
+        return [_valid_combo_name(item, "combo") for item in value]
 
 
 def _validar_modo(body: SectionCutBody) -> None:
