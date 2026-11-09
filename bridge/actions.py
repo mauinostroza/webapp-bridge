@@ -830,7 +830,7 @@ class ComboItem(BaseModel):
     @field_validator("name")
     @classmethod
     def item_name(cls, value: str) -> str:
-        return _valid_name(value, "case/combo name")
+        return _valid_combo_name(value, "case/combo name")
 
     @field_validator("factor")
     @classmethod
@@ -848,7 +848,7 @@ class Combination(BaseModel):
     @field_validator("name")
     @classmethod
     def combo_name(cls, value: str) -> str:
-        return _valid_name(value, "combination name")
+        return _valid_combo_name(value, "combination name")
 
     @field_validator("items")
     @classmethod

@@ -34,7 +34,7 @@ from typing import Any
 from pydantic import BaseModel, field_validator
 
 from bridge import equilibrio_sap as sap
-from bridge.actions import ActionValidationError, _valid_name
+from bridge.actions import ActionValidationError, _valid_combo_name, _valid_name
 
 _MAX_NAME = 100
 _MAX_MEMBERS = 200
@@ -145,6 +145,16 @@ def _optional_name(value: str | None, label: str) -> str | None:
     return _short_name(value, label)
 
 
+def _optional_combo(value: str | None, label: str) -> str | None:
+    """Combinación opcional: SAP2000 admite «:» («ASD1: D + L»)."""
+    if value is None or not str(value).strip():
+        return None
+    nombre = _valid_combo_name(value, label)
+    if len(nombre) > _MAX_NAME:
+        raise ValueError(f"{label} must be at most {_MAX_NAME} characters")
+    return nombre
+
+
 class FrameDataBody(BaseModel):
     frame: str
     combo_sismo: str | None = None
@@ -158,12 +168,12 @@ class FrameDataBody(BaseModel):
     @field_validator("combo_sismo")
     @classmethod
     def sismo_name(cls, value: str | None) -> str | None:
-        return _optional_name(value, "combinación de sismo")
+        return _optional_combo(value, "combinación de sismo")
 
     @field_validator("combo_grav")
     @classmethod
     def grav_name(cls, value: str | None) -> str | None:
-        return _optional_name(value, "combinación de gravedad")
+        return _optional_combo(value, "combinación de gravedad")
 
 
 class GroupDemandsBody(BaseModel):
@@ -178,7 +188,7 @@ class GroupDemandsBody(BaseModel):
     @field_validator("combo_sismo")
     @classmethod
     def sismo_name(cls, value: str | None) -> str | None:
-        return _optional_name(value, "combinación de sismo")
+        return _optional_combo(value, "combinación de sismo")
 
 
 def _query_group(group: str) -> str:

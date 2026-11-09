@@ -46,7 +46,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from bridge import placa_base as pb
 from bridge import str2fund as sf
-from bridge.actions import _get_name_list, _ret, _valid_name
+from bridge.actions import _get_name_list, _ret, _valid_combo_name, _valid_name
 from bridge.com_orden import normalizar
 
 MAX_NODOS_LECTURA = 500
@@ -569,6 +569,14 @@ def _nombre(valor: str, etiqueta: str) -> str:
         raise ValueError(f"{etiqueta} no es un nombre válido de SAP2000.") from exc
 
 
+def _nombre_combinacion(valor: str) -> str:
+    """Combinaciones: SAP2000 admite «:» (p. ej. el nombre por defecto «ASD1: D + L»)."""
+    try:
+        return _valid_combo_name(valor, "combinación")
+    except ValueError as exc:
+        raise ValueError("combinación no es un nombre válido de SAP2000.") from exc
+
+
 class _Cuerpo(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
@@ -599,10 +607,15 @@ class ReaccionesBody(NodosBody):
     # Diagnóstico: respuesta cruda de JointReact del primer nodo y del primer caso (o combinación).
     sonda: bool = False
 
-    @field_validator("casos", "combinaciones")
+    @field_validator("casos")
     @classmethod
-    def _nombres(cls, v: list[str]) -> list[str]:
+    def _casos(cls, v: list[str]) -> list[str]:
         return [_nombre(n, "caso") for n in v]
+
+    @field_validator("combinaciones")
+    @classmethod
+    def _combinaciones(cls, v: list[str]) -> list[str]:
+        return [_nombre_combinacion(n) for n in v]
 
     @model_validator(mode="after")
     def _alguno(self) -> ReaccionesBody:
