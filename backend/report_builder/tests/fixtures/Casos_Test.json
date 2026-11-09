@@ -7,7 +7,7 @@
         "nombre_diseno": "Caso 1 - Empotrado sin silla, sin atiesadores, sin llave",
         "notas": "",
         "sap2000": {
-          "modelo": "TORRE+CT3 v06.sdb",
+          "modelo": "modelo_prueba.sdb",
           "nodos": [
             "1",
             "2",
