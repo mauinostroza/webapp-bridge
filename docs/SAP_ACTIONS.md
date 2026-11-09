@@ -438,10 +438,12 @@ Unidades: las lecturas van en tonf y tonf·m, las coordenadas en m y el plan en 
 |---|---|---|---|---|---|
 | `estado` | GET | Nombre del modelo y si está bloqueado. | — | `{modelo, bloqueado}`. `bloqueado` es `null` si no se pudo leer. | No |
 | `casos` | GET | Casos y combinaciones del modelo, y los marcados para salida. | — | `{modelo, casos, combinaciones, seleccion: {casos, combinaciones}, seleccion_desconocida}`. `seleccion_desconocida` es `true` si no se pudo leer alguna marca de salida. | No |
-| `nodos` | POST | Lee las coordenadas de los nodos seleccionados. Si no hay selección, lee los nodos restringidos. No modifica la selección. | Sin cuerpo. | `{modelo, origen: "seleccion" \| "restringidos", unidades: "tonf-m", columns: [Joint, X, Y, Z], data}` | No. Fija tonf-m mientras lee y restaura las unidades al salir. |
+| `nodos` | POST | Lee las coordenadas de los nodos seleccionados (o, sin selección, los restringidos). Con `nodos` en el cuerpo lee las de esos nodos, sin depender de la selección. No modifica la selección. | Sin cuerpo o `{}`: selección actual. `{nodos: [1..500]}`: esos nodos. | Sin `nodos`: `{modelo, origen: "seleccion" \| "restringidos", unidades, columns: ["Joint","X","Y","Z"], data}`. Con `nodos`: lo mismo con `origen: "nodos"`, más `z_min`, `z_max` y `dispersion_z`. Un nodo inexistente: 409 `nodo_desconocido`. | No |
 | `reacciones` | POST | Marca para salida los casos y combinaciones indicados y lee `Results.JointReact` de los nodos. | `{nodos: [1..500], casos: [...], combinaciones: [...]}`. Hace falta al menos un caso o combinación. | `{modelo, unidades: "tonf-m", columns: [Joint, OutputCase, CaseType, StepType, F1, F2, F3, M1, M2, M3], data}` | **Sí**: cambia la selección de salida (desmarca todo y marca lo indicado). No restaura la selección anterior. |
 | `exportar/preview` | POST | Revisa el plan contra el modelo: bloqueo, colisiones de nombres y existencia del material. | `{plan}`. El campo `huella` se ignora. | `{ok, modelo, bloqueado, conflictos, avisos, material_existe, resumen, huella}` | No |
 | `exportar/apply` | POST | Crea material, secciones, nodos, shells, pedestal, patrones, cargas y resortes del plan, y relee lo creado. | `{plan, huella, confirmed: true}` | `{ok, verificado, creado: {material, secciones_frame, secciones_shell, nodos, shells, frames, patrones, cargas, resortes}, resumen, modelo}` | **Sí** |
+
+**Columnas de `reacciones`:** `Joint, OutputCase, CaseType, StepType, F1, F2, F3, M1, M2, M3` (en este orden, con los valores de siempre: `CaseType` es `Combination` o `LoadCase`) y, añadidas al final, `StepNum` y `CaseTypeSap` (tipo real del caso en SAP2000, de `LoadCases.GetTypeOAPI_1`: `LinStatic`, `LinRespSpec`…; vacío si SAP no lo informa). Claves opcionales de la respuesta, solo si hay algo que avisar: `avisos` y `nodos_ejes_locales` (nudos con ejes locales girados; las reacciones se entregan tal como las devuelve `JointReact`, sin girar: sin confirmar con SAP2000 real). La selección de salida del usuario se restaura al terminar. Con `"sonda": true` (un caso o combinación) devuelve la respuesta cruda de `JointReact` para diagnóstico.
 
 Las comprobaciones de `exportar/preview` no escriben nada. `exportar/apply` repite esas mismas comprobaciones antes de escribir.
 
@@ -544,6 +546,14 @@ Código: `bridge/excel_reacciones.py` (instalado desde `bridge.actions.install_r
 
 Flujo: `open-reactions` → el usuario edita la hoja «Cargas», guarda y cierra Excel → `read-reactions` con el `path` devuelto.
 
+## Fundaciones SAP2000 en el Viewer (`viewer/foundations/*`)
+
+Solo lectura; código en `bridge/viewer/foundations.py` y `bridge/viewer/routes.py`.
+
+* `POST /v1/sap/actions/viewer/foundations/results`: cuerpo `{ "groups": [{ "name", "joints", "shells" }], "cases"?, "combos"? }`. Lee, para la unión de nudos y shells de los grupos, lo mismo que `POST /v1/sap/snapshot` (mismos `step_type` y `step_num`): `coordinates`, `reactions`, `displacements`, `soil_pressures`, `groups`, `model_locked`; más `units: "Ton_m_C"`, `model: {name, path}`, `truncated` y `warnings`. Cada lista de filas se corta en 50.000 y `truncated` pasa a `true`. Sin `cases` ni `combos` se leen todos los casos. A diferencia del snapshot, la selección de salida del usuario y las unidades se restauran al terminar (también si la lectura falla); si no se pudiera restaurar, lo dice `warnings`.
+* `GET /v1/sap/actions/viewer/foundations/groups`: `{ "groups": [{ "name", "joints", "shells" }] }` con los grupos de SAP2000 que tienen algún nudo o shell.
+* Nombres: `joints` y `shells` son los de `PointObj` y `AreaObj`, los mismos que `nodes.ids` y `areas[].id` de `GET viewer/snapshot`. El snapshot omite (con aviso en `warnings`/`skipped`) los nudos sin coordenadas finitas y las áreas con menos de 3 puntos o con puntos omitidos, así que sus listas pueden ser un subconjunto de los nombres de SAP2000, nunca nombres distintos.
+
 ## Acero AISC 360-22: fuerzas de barras y demandas de diseño (validado con SAP2000 23.3.1, sonda v3)
 
 Código: `bridge/acero_aisc360_fuerzas.py` (instalado desde `bridge.actions.install_routes`, mismo envoltorio `call`). Tests: `tests/test_bridge_acero_fuerzas.py` (COM falso). Claves en `web/src/bridge_contracts.json`. Cliente web: `web/src/acero_aisc360/sapFuerzas.ts` (sin conectar a la interfaz).
@@ -554,6 +564,7 @@ Código: `bridge/acero_aisc360_fuerzas.py` (instalado desde `bridge.actions.inst
 * `GET /v1/sap/actions/acero-aisc360/selected` -> `{ "frames": [{ "frame", "seccion", "longitud_m" }] }` con la selección de SAP2000. La longitud sale en m con las unidades actuales del modelo. Solo lee.
 * `POST /v1/sap/actions/acero-aisc360/fuerzas` con `{ "frames": [1..500 nombres] | "selected", "combos": [1..300], "estaciones": [x/L entre 0 y 1, opcional] }`.
   * Valores fuera de rango (501 barras, combos vacíos, más de 300 combinaciones, `estaciones` fuera de [0, 1]): 422.
+* `por_estacion` (opcional, `false` por defecto): con `true` la respuesta añade, sin cambiar nada de lo anterior, `cb_pasos` en cada demanda (`[{step, Cb, interpolado, forzado}]`: el Cb de cada paso, p. ej. Max y Min por separado; `Cb` sigue siendo el menor) y `demandas_estacion`: una demanda por barra, combinación, paso y estación (`frame, combo, step, x_m, Pu_kN, Tu_kN, Vux_kN, Vuy_kN, Mux_kNm, Muy_kNm, T_kNm, Cb`) calculada solo con las fuerzas de esa estación y paso. Respeta `estaciones`.
   * La web («Traer fuerzas») pide las combinaciones en lotes de hasta 50 y fusiona las respuestas en el navegador; el puente acepta hasta 300 por petición.
   * Barras que no existen en el modelo: se omiten y se avisan en `warnings`. Si ninguna existe, 409.
   * Combinación o caso que no existe en el modelo, o sin barras seleccionadas con `"selected"`: 409 `sap_error`.

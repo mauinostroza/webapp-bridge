@@ -40,6 +40,9 @@ RUTAS_ESPERADAS = {
     ("POST", "k/apply"),
     ("GET", "k/effective"),
     ("GET", "sections/props"),
+    # Fundaciones SAP2000 (bridge/viewer/foundations.py).
+    ("GET", "foundations/groups"),
+    ("POST", "foundations/results"),
 }
 
 

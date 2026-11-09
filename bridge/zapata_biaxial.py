@@ -13,7 +13,7 @@ Rutas (``/v1/sap/actions/zapata-biaxial/``):
 - ``POST nodos`` con ``{"nodos": [...]}``: X, Y, Z de esos nodos (sin selección) y dispersión de cotas.
 - ``POST reacciones``: marca los casos/combinaciones indicados para salida, lee ``Results.JointReact``
   de los nodos (tonf y m) y restaura la selección de salida del usuario. Última columna: StepNum;
-  CaseType sale de ``LoadCases.GetTypeOAPI_1`` (JointReact no lo devuelve).
+  CaseTypeSap sale de ``LoadCases.GetTypeOAPI_1`` (JointReact no lo devuelve).
 - ``POST reacciones`` con ``"sonda": true``: respuesta cruda de JointReact (envolventes, espectros, ejes).
 - ``POST exportar/preview``: comprueba, sin escribir, bloqueo del modelo y colisiones de nombres.
 - ``POST exportar/apply`` (``confirmed: true``): crea material, secciones, nodos, shells, pedestal,
@@ -53,7 +53,9 @@ MAX_NODOS_LECTURA = 500
 MAX_FILAS_REACCIONES = 50_000
 MAX_NODOS_ESCANEO = 20_000
 MAX_OBJETOS_PLAN = 25_000
-# StepNum va al final para no mover las columnas que ya consume la web.
+# Las columnas nuevas van al final para no mover las que ya consume la web: StepNum y CaseTypeSap (tipo real del
+# caso en SAP2000). ``CaseType`` conserva sus valores de siempre («Combination» o «LoadCase»): la web y el
+# motor de cálculo distinguen combinaciones con ``CaseType == "Combination"``.
 COLUMNAS_REACCIONES = [
     "Joint",
     "OutputCase",
@@ -66,6 +68,7 @@ COLUMNAS_REACCIONES = [
     "M2",
     "M3",
     "StepNum",
+    "CaseTypeSap",
 ]
 # eLoadCaseType de la API (sin validar contra SAP2000 real; un código fuera de la tabla sale como «Tipo<n>»).
 _TIPOS_CASO = {
@@ -214,6 +217,7 @@ def coordenadas(model: Any, nodos_: Sequence[str]) -> dict[str, Any]:
     cotas = [f[3] for f in filas]
     return {
         "modelo": pb._nombre_modelo(model),
+        "origen": "nodos",
         "unidades": "tonf-m",
         "columns": ["Joint", "X", "Y", "Z"],
         "data": filas,
@@ -259,12 +263,12 @@ def reacciones(
                         tipo = _tipo_de_caso(model, nombre)
                         if tipo is None:
                             sin_tipo.add(nombre)
-                        tipos[nombre] = tipo or "LoadCase"
+                        tipos[nombre] = tipo or ""
                 filas.append(
                     [
                         r["node"],
                         nombre,
-                        tipos[nombre],
+                        "Combination" if nombre in combos else "LoadCase",
                         r["step_type"],
                         r["Vx"],
                         r["Vy"],
@@ -273,6 +277,7 @@ def reacciones(
                         r["My"],
                         r["Mz"],
                         r["step_num"],
+                        tipos[nombre],
                     ]
                 )
                 if len(filas) > MAX_FILAS_REACCIONES:
@@ -282,7 +287,7 @@ def reacciones(
                     )
     if sin_tipo:
         avisos.append(
-            "SAP2000 no informó el tipo de algunos casos (se rotulan «LoadCase»): "
+            "SAP2000 no informó el tipo de algunos casos (CaseTypeSap queda vacío): "
             + ", ".join(sorted(sin_tipo)[:5])
             + "."
         )
@@ -296,14 +301,18 @@ def reacciones(
             "SAP2000 no devolvió reacciones. Ejecute el análisis y revise la selección de resultados.",
             code="sin_resultados",
         )
-    return {
+    salida: dict[str, Any] = {
         "modelo": pb._nombre_modelo(model),
         "unidades": "tonf-m",
         "columns": COLUMNAS_REACCIONES,
         "data": filas,
-        "avisos": avisos,
-        "nodos_ejes_locales": girados,
     }
+    # Claves opcionales: solo aparecen si hay algo que avisar; sin ellas la respuesta es la de siempre.
+    if avisos:
+        salida["avisos"] = avisos
+    if girados:
+        salida["nodos_ejes_locales"] = girados
+    return salida
 
 
 def _plano(valor: Any) -> Any:
@@ -333,7 +342,10 @@ def sonda_joint_react(
     avisos: list[str] = []
     with (
         _seleccion_de_salida_acotada(
-            model, [caso] if caso is not None else [], [combinacion] if combinacion is not None else [], avisos
+            model,
+            [caso] if caso is not None else [],
+            [combinacion] if combinacion is not None else [],
+            avisos,
         ),
         pb._unidades_tonf_m(model),
     ):
@@ -570,6 +582,17 @@ class NodosBody(_Cuerpo):
         return [_nombre(n, "nodo") for n in v]
 
 
+class NodosOpcionalesBody(_Cuerpo):
+    """Cuerpo de ``POST nodos``: ``{}`` (o sin cuerpo) = nodos seleccionados; ``nodos`` = esos nodos."""
+
+    nodos: list[str] | None = Field(default=None, min_length=1, max_length=MAX_NODOS_LECTURA)
+
+    @field_validator("nodos")
+    @classmethod
+    def _nodos(cls, v: list[str] | None) -> list[str] | None:
+        return None if v is None else [_nombre(n, "nodo") for n in v]
+
+
 class ReaccionesBody(NodosBody):
     casos: list[str] = Field(default_factory=list, max_length=500)
     combinaciones: list[str] = Field(default_factory=list, max_length=500)
@@ -651,10 +674,11 @@ def install_routes(app: Any, call: Callable[[Callable[[Any], Any]], Any]) -> Non
         return call(casos)
 
     @app.post(f"{prefix}/nodos")
-    def zapata_nodos(body: NodosBody | None = None):
-        # Sin cuerpo: nodos seleccionados/restringidos. Con ``nodos``: coordenadas de esos nodos.
-        if body is not None:
-            return call(lambda model: coordenadas(model, body.nodos))
+    def zapata_nodos(body: NodosOpcionalesBody | None = None):
+        # Sin cuerpo o con ``{}``: nodos seleccionados (o restringidos). Con ``nodos``: coordenadas de esos nodos.
+        if body is not None and body.nodos is not None:
+            nombres = body.nodos
+            return call(lambda model: coordenadas(model, nombres))
         return call(nodos)
 
     @app.post(f"{prefix}/reacciones")
