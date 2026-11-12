@@ -188,3 +188,86 @@ def test_la_lectura_es_de_solo_lectura(montar):
     modelo = Modelo2(SECCIONES)
     montar(modelo).get(RUTA)
     assert modelo.escrituras == []
+
+
+# ---------------------------------------------------------------------------
+# GetNameList de PropFrame con respuestas de otra forma o ilegibles
+# ---------------------------------------------------------------------------
+
+
+class FrameProp3(FrameProp2):
+    """PropFrame cuya GetNameList responde con la forma que se le indique (por firma)."""
+
+    def __init__(self, secciones, mm, respuesta):
+        super().__init__(secciones, mm)
+        self.respuesta = respuesta
+        self.llamadas = []
+
+    def GetNameList(self, *args):
+        self.llamadas.append(len(args))
+        r = self.respuesta(*args) if callable(self.respuesta) else self.respuesta
+        if isinstance(r, Exception):
+            raise r
+        return r
+
+
+def _modelo3(respuesta, secciones=SECCIONES):
+    m = Modelo2(secciones)
+    m.PropFrame = FrameProp3(secciones, UNIDADES[12][1], respuesta)
+    return m
+
+
+NOMBRES = tuple(sorted(SECCIONES))
+
+
+@pytest.mark.parametrize(
+    "respuesta",
+    [
+        (len(NOMBRES), NOMBRES, 0),  # (count, names, ret)
+        (0, len(NOMBRES), NOMBRES),  # (ret, count, names)
+        (NOMBRES, 0),  # (names, ret)
+        NOMBRES,  # tupla de str sin ret: antes lanzaba RuntimeError
+        list(NOMBRES),  # lista de str sin ret
+    ],
+    ids=["count_names_ret", "ret_count_names", "names_ret", "tupla_sin_ret", "lista_sin_ret"],
+)
+def test_la_lista_de_secciones_se_lee_con_cualquier_forma_de_respuesta(montar, respuesta):
+    j = montar(_modelo3(respuesta)).get(RUTA).json()
+    assert set(j["sections"]) == set(SECCIONES) and j["warnings"] == []
+
+
+def test_si_una_firma_responde_raro_se_prueba_la_siguiente(montar):
+    modelo = _modelo3(lambda *a: None if len(a) == 0 else (len(NOMBRES), NOMBRES, 0))
+    j = montar(modelo).get(RUTA).json()
+    assert set(j["sections"]) == set(SECCIONES)
+    assert modelo.PropFrame.llamadas[-2:] == [0, 2]  # GetNameList() y GetNameList(0, [])
+
+
+def test_lista_ilegible_sin_names_responde_vacio_con_aviso_en_vez_de_fallar(montar):
+    r = montar(_modelo3(lambda *a: object())).get(RUTA)
+    assert r.status_code == 200
+    j = r.json()
+    assert j["sections"] == {} and j["materials"] == {} and set(j) == {"units", "sections", "materials", "warnings"}
+    assert len(j["warnings"]) == 1 and "No se pudo leer la lista de secciones" in j["warnings"][0]
+    assert "?names=A,B" in j["warnings"][0] and "última respuesta: object" in j["warnings"][0]
+
+
+def test_lista_con_error_com_sin_names_tambien_responde_vacio_con_aviso(montar):
+    j = montar(_modelo3(TypeError("firma no admitida"))).get(RUTA).json()
+    assert j["sections"] == {} and "No se pudo leer la lista de secciones" in j["warnings"][0]
+
+
+def test_names_lee_cada_seccion_directamente_sin_la_lista(montar):
+    modelo = _modelo3(lambda *a: None)  # ninguna firma de GetNameList sirve
+    j = montar(modelo).get(RUTA, params={"names": "IA,GEN,FANTASMA"}).json()
+    assert set(j["sections"]) == {"IA", "GEN"}
+    assert j["sections"]["IA"]["t2b"] == pytest.approx(150.0) and j["sections"]["GEN"]["shapeSource"] == "none"
+    assert set(j["materials"]) == {"A992"}
+    assert any("No se pudo leer la lista de secciones" in w for w in j["warnings"])
+    assert "Sección FANTASMA: no se pudo leer su tipo; se omite." in j["warnings"]
+
+
+def test_names_con_lista_legible_sigue_avisando_de_las_inexistentes(montar):
+    j = montar(_modelo3((len(NOMBRES), NOMBRES, 0))).get(RUTA, params={"names": "IA,NO_EXISTE"}).json()
+    assert set(j["sections"]) == {"IA"}
+    assert j["warnings"] == ["Sección NO_EXISTE: no existe en el modelo; se omite."]

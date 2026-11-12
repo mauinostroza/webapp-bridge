@@ -132,49 +132,86 @@ def split_return(raw: Any, ret_first: bool | None = None) -> tuple[int, list[Any
     return int(items[-1]), items[:-1]
 
 
+class UnexpectedNameListResponse(RuntimeError):
+    """La respuesta de ``GetNameList`` no tiene ninguna de las formas conocidas (no es un código de error)."""
+
+
+def _all_str(items: Any) -> bool:
+    return isinstance(items, (list, tuple)) and all(isinstance(name, str) for name in items)
+
+
 def _name_list(response: Any, operation: str) -> list[str]:
     """Normalize GetNameList returns from pywin32/comtypes.
 
-    The original bridges receive both ``(ret, count, names)`` and
-    ``(count, names, ret)`` shapes, depending on the generated COM wrapper.
+    Accepted shapes (the return code, when present, must be 0; otherwise ``RuntimeError``):
+    ``(ret, count, names)``, ``(count, names, ret)``, ``(names, ret)``, ``(names,)``, a list or tuple of
+    ``str`` directly (no return code), and a bare integer (``0`` = empty list). Any other shape raises
+    ``UnexpectedNameListResponse`` so ``_get_name_list`` can try the next signature.
     """
-    if not isinstance(response, tuple) or len(response) < 2:
-        raise RuntimeError(f"Unexpected SAP2000 response from {operation}")
-    _ret(response, operation)
-    names = next(
-        (
-            item
-            for item in response
-            if isinstance(item, (list, tuple)) and all(isinstance(name, str) for name in item)
-        ),
-        None,
-    )
+    if isinstance(response, (list, tuple)):
+        if response and _all_str(response):  # names without a return code
+            return [str(name) for name in response if str(name)]
+        if len(response) == 1 and _all_str(response[0]):
+            return [str(name) for name in response[0] if str(name)]
+        if len(response) == 1 and _is_int(response[0]) and response[0] == 0:
+            return []
+    elif _is_int(response):
+        if response == 0:  # count 0 / ok without names: empty list
+            return []
+        raise RuntimeError(f"SAP2000 {operation} returned {response}")
+    if not isinstance(response, (list, tuple)) or len(response) < 2:
+        raise UnexpectedNameListResponse(f"Unexpected SAP2000 response from {operation}")
+    try:
+        _ret(tuple(response), operation)
+    except UnexpectedNameListResponse:
+        raise
+    except RuntimeError as exc:
+        if str(exc).startswith("Unexpected SAP2000 response"):
+            raise UnexpectedNameListResponse(str(exc)) from exc
+        raise
+    names = next((item for item in response if _all_str(item)), None)
     if names is None:
         return []
     return [str(name) for name in names if str(name)]
+
+
+def _describe_response(response: Any) -> str:
+    return f"{type(response).__name__} {response!r}"[:200]
 
 
 def _get_name_list(member: Any, operation: str, *preferred_args: Any) -> list[str]:
     """Call GetNameList across the short and ByRef-friendly COM signatures.
 
     Mirrors ``reacciones.py::_get_name_list``: tries ``GetNameList()`` bare,
-    then with ``(0, [])`` ByRef placeholders, and finally the legacy
-    ``GetNameList_1(0, [])`` some older SAP2000 builds expose instead.
+    then with ``(0, [])`` ByRef placeholders (``PropFrame`` also ``(0, [], 0)``, PropType = All), and finally
+    the legacy ``GetNameList_1(0, [])`` some older SAP2000 builds expose instead. A signature that raises
+    ``TypeError`` or answers with an unexpected shape only fails THAT attempt; the error is raised if every
+    attempt fails, with the type and (truncated) repr of the last response to diagnose the real shape.
     """
     attempts = (preferred_args, (), (0, [])) if preferred_args else ((), (0, []))
+    if operation.startswith("PropFrame"):
+        attempts = (*attempts, (0, [], 0))
     failures: list[Exception] = []
+    last_response = "ninguna (la llamada falló antes de responder)"
     for args in attempts:
         try:
-            return _name_list(member.GetNameList(*args), operation)
-        except TypeError as exc:
+            response = member.GetNameList(*args)
+            last_response = _describe_response(response)
+            return _name_list(response, operation)
+        except (TypeError, UnexpectedNameListResponse) as exc:
             failures.append(exc)
     legacy = getattr(member, "GetNameList_1", None)
     if callable(legacy):
         try:
-            return _name_list(legacy(0, []), f"{operation}_1")
-        except TypeError as exc:
+            response = legacy(0, [])
+            last_response = _describe_response(response)
+            return _name_list(response, f"{operation}_1")
+        except (TypeError, UnexpectedNameListResponse) as exc:
             failures.append(exc)
-    raise RuntimeError(f"SAP2000 rejected supported arguments for {operation}: {failures[-1]}")
+    raise RuntimeError(
+        f"SAP2000 rejected supported arguments for {operation}: {failures[-1]} "
+        f"(última respuesta: {last_response})"
+    )
 
 
 def _call_get_coord_cartesian(model: Any, name: str) -> tuple[float, float, float]:
