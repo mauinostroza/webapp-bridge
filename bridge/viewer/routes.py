@@ -169,12 +169,16 @@ def install_routes(app: Any) -> None:
         return sin_cache({**_obtener_puente().status(), "designResultsStale": design_stale["value"]})
 
     @app.get(f"{PREFIJO}/sections/props")
-    async def sections_props():
-        """Propiedades de las secciones de barra en mm y MPa (solo lectura; no cambia unidades ni estado)."""
+    async def sections_props(names: str | None = None):
+        """Propiedades de las secciones de barra en mm y MPa (solo lectura; no cambia unidades ni estado).
+
+        ``?names=A,B`` limita la lectura a esas secciones; sin el parámetro, todas.
+        """
         if _obtener_puente().cached()[0] is None:
             raise HTTPException(404, "Sin modelo cargado. Conecta a SAP2000 o elige Demo.")
+        pedidas = [n.strip() for n in names.split(",") if n.strip()] if names and names.strip() else None
         try:
-            return sin_cache(await en_com(lambda c: read_section_props(c.model)))
+            return sin_cache(await en_com(lambda c: read_section_props(c.model, pedidas)))
         except SeccionesError as exc:
             raise HTTPException(409, str(exc)) from exc
 
