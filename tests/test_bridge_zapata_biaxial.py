@@ -59,15 +59,16 @@ class _Casos(_Lista):
 
 
 class _Puntos(_Lista):
-    def __init__(self, giro):
+    def __init__(self, giro, outer):
         super().__init__(("1", "2"))
         self.giro = giro
+        self.outer = outer
 
     def GetCoordCartesian(self, n, *a):
         return (float(n), 0.0, 10.0 + 0.5 * int(n), 0)
 
     def GetRestraint(self, n):
-        return ((True,) * 6 if n == "2" else (False,) * 6, 0)
+        return ((True,) * 6 if n in self.outer.restringidos else (False,) * 6, 0)
 
     def GetLocalAxes(self, n):
         return (30.0 if n in self.giro else 0.0, 0.0, 0.0, False, 0)
@@ -77,21 +78,27 @@ class _Seleccion:
     def __init__(self, outer):
         self.o = outer
 
-    def GetSelected(self):
+    def GetSelected(self, *args):
+        self.o.llamadas_seleccion.append(len(args))
+        if self.o.sel_fn is not None:
+            return self.o.sel_fn(*args)
         n = self.o.seleccion
         return (len(n), (1,) * len(n), tuple(n), 0)
 
 
 class FakeZapata:
-    def __init__(self, giro=(), seleccion=()):
+    def __init__(self, giro=(), seleccion=(), restringidos=("2",), sel_fn=None):
         self.seleccion = tuple(seleccion)
+        self.sel_fn = sel_fn  # sustituye la respuesta de SelectObj.GetSelected
+        self.llamadas_seleccion: list[int] = []
+        self.restringidos = tuple(restringidos)
         self.SelectObj = _Seleccion(self)
         self.sel_c, self.sel_k = {"DEAD"}, {"U9"}
         self.units = 6
         self.Results = _Results(self)
         self.LoadCases = _Casos(("DEAD", "SX"))
         self.RespCombo = _Lista(("U1", "U9", "ASD1: D + L"))
-        self.PointObj = _Puntos(giro)
+        self.PointObj = _Puntos(giro, self)
 
     def GetPresentUnits(self):
         return self.units
@@ -272,3 +279,120 @@ def test_reacciones_http_acepta_combinacion_con_dos_puntos():
     assert r.status_code == 200, r.text
     assert {f[1] for f in r.json()["data"]} == {"DEAD", "ASD1: D + L"}
     assert {f[2] for f in r.json()["data"]} == {"LoadCase", "Combination"}
+
+
+# ---------------------------------------------------------------------------
+# Selección vacía o ilegible y fallback a nodos con restricciones
+# ---------------------------------------------------------------------------
+
+AVISO_FALLBACK = "No había selección: se tomaron 1 nodos con restricciones."
+
+
+def _lanza(*_a):
+    raise RuntimeError("COM no disponible")
+
+
+# Respuestas de SelectObj.GetSelected que deben tratarse como «nada seleccionado», no como error.
+SELECCIONES_VACIAS = {
+    "numero_cero": lambda *a: (0, (), (), 0),
+    "ret_primero_vacia": lambda *a: (0, 0, (), ()),
+    "none": lambda *a: None,
+    "entero": lambda *a: 0,
+    "sin_arreglos": lambda *a: (0, 0, 0, 0),
+    "forma_distinta": lambda *a: (0, "x", 5, 7.5),
+    "codigo_de_error": lambda *a: (0, (1,), ("1",), 1),
+    "arreglos_desiguales": lambda *a: (2, (1, 1), ("1",), 0),
+    "lanza": _lanza,
+    "solo_barras": lambda *a: (2, (2, 2), ("B1", "B2"), 0),
+    "solo_areas_y_barras": lambda *a: (3, (5, 2, 5), ("A1", "B1", "A2"), 0),
+}
+
+
+@pytest.mark.parametrize("sel_fn", SELECCIONES_VACIAS.values(), ids=SELECCIONES_VACIAS.keys())
+def test_nodos_seleccion_vacia_o_ilegible_usa_los_restringidos_sin_error(sel_fn):
+    r = _cliente(FakeZapata(sel_fn=sel_fn)).post(f"{RAIZ}/nodos", json={})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["origen"] == "restringidos"
+    assert [f[0] for f in body["data"]] == ["2"]
+    assert body["avisos"] == [AVISO_FALLBACK]
+    assert body["columns"] == ["Joint", "X", "Y", "Z"]
+
+
+def test_nodos_con_seleccion_no_lleva_avisos_y_cumple_el_contrato():
+    r = _cliente(FakeZapata(seleccion=("1",))).post(f"{RAIZ}/nodos", json={})
+    body = r.json()
+    assert body["origen"] == "seleccion" and "avisos" not in body
+    assert_matches_contract(CONTRATOS, f"POST {RAIZ}/nodos", body)
+
+
+def test_nodos_segunda_firma_si_la_primera_no_da_respuesta_utilizable():
+    def sel(*args):
+        if not args:
+            raise TypeError("firma corta no disponible")
+        return (1, (1,), ("1",), 0)
+
+    model = FakeZapata(sel_fn=sel)
+    r = _cliente(model).post(f"{RAIZ}/nodos", json={})
+    assert r.json()["origen"] == "seleccion" and [f[0] for f in r.json()["data"]] == ["1"]
+    assert model.llamadas_seleccion == [0, 3]  # GetSelected() y GetSelected(0, [], [])
+
+
+def test_nodos_seleccion_mixta_toma_solo_los_nodos():
+    r = _cliente(FakeZapata(sel_fn=lambda *a: (3, (2, 1, 5), ("B1", "1", "A1"), 0))).post(
+        f"{RAIZ}/nodos", json={}
+    )
+    assert [f[0] for f in r.json()["data"]] == ["1"] and r.json()["origen"] == "seleccion"
+
+
+def test_nodos_sin_seleccion_ni_restricciones_da_error_claro():
+    r = _cliente(FakeZapata(restringidos=())).post(f"{RAIZ}/nodos", json={})
+    assert r.status_code == 409
+    assert r.json()["detail"] == {
+        "code": "sin_nodos",
+        "message": "No hay nodos seleccionados ni con restricciones.",
+    }
+
+
+def test_el_fallback_solo_lee_y_no_cambia_la_seleccion():
+    model = FakeZapata(sel_fn=lambda *a: (0, (), (), 0))
+    model.SelectObj.SetSelected = (
+        _lanza  # cualquier intento de escribir la selección haría fallar la petición
+    )
+    assert _cliente(model).post(f"{RAIZ}/nodos", json={}).status_code == 200
+
+
+def test_reacciones_sin_nodos_usa_la_seleccion():
+    r = _cliente(FakeZapata(seleccion=("1",))).post(
+        f"{RAIZ}/reacciones", json={"casos": ["DEAD"], "combinaciones": []}
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert (body["origen"], body["nodos"]) == ("seleccion", ["1"])
+    assert {f[0] for f in body["data"]} == {"1"} and "avisos" not in body
+
+
+def test_reacciones_sin_nodos_ni_seleccion_usa_los_restringidos_con_aviso():
+    r = _cliente(FakeZapata(sel_fn=lambda *a: None)).post(
+        f"{RAIZ}/reacciones", json={"casos": ["DEAD"], "combinaciones": ["ASD1: D + L"]}
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert (body["origen"], body["nodos"], body["avisos"]) == ("restringidos", ["2"], [AVISO_FALLBACK])
+    assert {f[0] for f in body["data"]} == {"2"}
+
+
+def test_reacciones_sin_nodos_ni_restricciones_da_error_claro():
+    r = _cliente(FakeZapata(sel_fn=lambda *a: None, restringidos=())).post(
+        f"{RAIZ}/reacciones", json={"casos": ["DEAD"], "combinaciones": []}
+    )
+    assert r.status_code == 409 and r.json()["detail"]["code"] == "sin_nodos"
+
+
+def test_reacciones_con_nodos_explicitos_no_cambia_el_contrato():
+    r = _cliente(FakeZapata(seleccion=("1",))).post(
+        f"{RAIZ}/reacciones", json={"nodos": ["2"], "casos": ["DEAD"], "combinaciones": []}
+    )
+    body = r.json()
+    assert {f[0] for f in body["data"]} == {"2"}  # ni selección ni fallback
+    assert_matches_contract(CONTRATOS, f"POST {RAIZ}/reacciones", body)
