@@ -46,7 +46,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from bridge import placa_base as pb
 from bridge import str2fund as sf
-from bridge.actions import _get_name_list, _ret, _valid_combo_name, _valid_name
+from bridge.actions import _get_name_list, _parse_get_selected, _ret, _valid_combo_name, _valid_name
 from bridge.com_orden import normalizar
 
 MAX_NODOS_LECTURA = 500
@@ -165,24 +165,61 @@ def _seleccion_de_salida_acotada(
                 avisos.append(f"No se pudo restaurar la selección de salida de SAP2000: {exc}")
 
 
-def nodos(model: Any) -> dict[str, Any]:
-    """Nodos seleccionados con sus coordenadas (m); sin selección, los restringidos."""
-    model = normalizar(model, destino_primero=False)
-    elegidos = pb._nodos_seleccionados(model)
-    origen = "seleccion"
-    if not elegidos:
-        origen = "restringidos"
-        todos = pb._nombres(model.PointObj.GetNameList(), "PointObj.GetNameList")
-        if len(todos) > MAX_NODOS_ESCANEO:
-            raise ZapataBiaxialError(
-                f"El modelo tiene {len(todos)} nodos y ninguno seleccionado; seleccione los nodos de la fundación.",
-                code="demasiados_nodos",
-            )
-        elegidos = [n for n in todos if pb._estado_restriccion(model, n) is not False]
-    if not elegidos:
+def _nodos_seleccionados(model: Any) -> list[str]:
+    """Nodos (eObjectType 1) seleccionados en SAP2000; una selección vacía o ilegible es ``[]``, nunca un error.
+
+    Mismo parseo tolerante que ``bridge.actions.selected_objects``: ``GetSelected()`` y, si no da una respuesta
+    utilizable, ``GetSelected(0, [], [])``. ``None``, ``NumberSelected = 0``, una respuesta sin arreglos o con otra
+    forma según la versión de SAP2000 se tratan como «nada seleccionado». No cambia la selección del usuario.
+    """
+    parsed = None
+    for llamada in (lambda: model.SelectObj.GetSelected(), lambda: model.SelectObj.GetSelected(0, [], [])):
+        try:
+            parsed = _parse_get_selected(llamada())
+        except Exception:
+            parsed = None
+        if parsed is not None:
+            break
+    if parsed is None:
+        return []
+    tipos, nombres = parsed
+    elegidos: list[str] = []
+    for tipo, nombre in zip(tipos, nombres):
+        try:
+            es_nodo = int(tipo) == pb.TIPO_PUNTO
+        except (TypeError, ValueError):
+            continue
+        if es_nodo and str(nombre).strip():
+            elegidos.append(str(nombre))
+    return list(dict.fromkeys(elegidos))
+
+
+def _resolver_nodos(model: Any) -> tuple[list[str], str, list[str]]:
+    """Nodos de la fundación: los seleccionados o, sin ninguno, los que tienen alguna restricción.
+
+    Devuelve ``(nodos, origen, avisos)``; ``origen`` es ``"seleccion"`` o ``"restringidos"`` (el valor que ya
+    consume la web). El fallback solo lee (``PointObj.GetRestraint``): no toca la selección del usuario.
+    """
+    elegidos = _nodos_seleccionados(model)
+    if elegidos:
+        return elegidos, "seleccion", []
+    todos = pb._nombres(model.PointObj.GetNameList(), "PointObj.GetNameList")
+    if len(todos) > MAX_NODOS_ESCANEO:
         raise ZapataBiaxialError(
-            "No hay nodos seleccionados ni restringidos en el modelo de SAP2000.", code="sin_nodos"
+            f"El modelo tiene {len(todos)} nodos y ninguno seleccionado; seleccione los nodos de la fundación.",
+            code="demasiados_nodos",
         )
+    restringidos = [n for n in todos if pb._estado_restriccion(model, n) is True]
+    if not restringidos:
+        raise ZapataBiaxialError("No hay nodos seleccionados ni con restricciones.", code="sin_nodos")
+    aviso = f"No había selección: se tomaron {len(restringidos)} nodos con restricciones."
+    return restringidos, "restringidos", [aviso]
+
+
+def nodos(model: Any) -> dict[str, Any]:
+    """Nodos seleccionados con sus coordenadas (m); sin selección, los que tienen restricciones."""
+    model = normalizar(model, destino_primero=False)
+    elegidos, origen, avisos = _resolver_nodos(model)
     if len(elegidos) > MAX_NODOS_LECTURA:
         raise ZapataBiaxialError(
             f"Hay {len(elegidos)} nodos (máximo {MAX_NODOS_LECTURA}); seleccione sólo los de la fundación.",
@@ -190,13 +227,16 @@ def nodos(model: Any) -> dict[str, Any]:
         )
     with pb._unidades_tonf_m(model):
         filas = [[n, *pb._coordenadas(model, n)] for n in elegidos]
-    return {
+    salida: dict[str, Any] = {
         "modelo": pb._nombre_modelo(model),
         "origen": origen,
         "unidades": "tonf-m",
         "columns": ["Joint", "X", "Y", "Z"],
         "data": filas,
     }
+    if avisos:  # clave opcional: solo con el fallback
+        salida["avisos"] = avisos
+    return salida
 
 
 def coordenadas(model: Any, nodos_: Sequence[str]) -> dict[str, Any]:
@@ -228,10 +268,22 @@ def coordenadas(model: Any, nodos_: Sequence[str]) -> dict[str, Any]:
 
 
 def reacciones(
-    model: Any, nodos_: Sequence[str], casos_: Sequence[str], combinaciones: Sequence[str]
+    model: Any, nodos_: Sequence[str] | None, casos_: Sequence[str], combinaciones: Sequence[str]
 ) -> dict[str, Any]:
-    """Reacciones de los nodos para los casos/combinaciones indicados (tonf, tonf·m)."""
+    """Reacciones de los nodos para los casos/combinaciones indicados (tonf, tonf·m).
+
+    Sin ``nodos_`` se usan los seleccionados en SAP2000 o, sin selección, los que tienen restricciones.
+    """
     model = normalizar(model, destino_primero=False)
+    origen: str | None = None
+    avisos_nodos: list[str] = []
+    if not nodos_:
+        nodos_, origen, avisos_nodos = _resolver_nodos(model)
+        if len(nodos_) > MAX_NODOS_LECTURA:
+            raise ZapataBiaxialError(
+                f"Hay {len(nodos_)} nodos (máximo {MAX_NODOS_LECTURA}); seleccione sólo los de la fundación.",
+                code="demasiados_nodos",
+            )
     disponibles_casos, disponibles_combos = pb._nombres_de_carga(model)
     desconocidos = [
         n for n in (*casos_, *combinaciones) if n not in {*disponibles_casos, *disponibles_combos}
@@ -243,7 +295,7 @@ def reacciones(
         )
     combos = set(disponibles_combos)
     filas: list[list[Any]] = []
-    avisos: list[str] = []
+    avisos: list[str] = list(avisos_nodos)
     tipos: dict[str, str] = {}
     sin_tipo: set[str] = set()
     girados: list[str] = []
@@ -308,6 +360,9 @@ def reacciones(
         "data": filas,
     }
     # Claves opcionales: solo aparecen si hay algo que avisar; sin ellas la respuesta es la de siempre.
+    if origen is not None:  # sin lista de nodos en la petición: de dónde salieron
+        salida["origen"] = origen
+        salida["nodos"] = list(dict.fromkeys(nodos_))
     if avisos:
         salida["avisos"] = avisos
     if girados:
@@ -327,7 +382,7 @@ def _plano(valor: Any) -> Any:
 
 
 def sonda_joint_react(
-    model: Any, nodo: str, caso: str | None, combinacion: str | None, max_filas: int = 40
+    model: Any, nodo: str | None, caso: str | None, combinacion: str | None, max_filas: int = 40
 ) -> dict[str, Any]:
     """Respuesta cruda de ``Results.JointReact`` de un nodo para un caso o combinación.
 
@@ -335,6 +390,8 @@ def sonda_joint_react(
     envolvente, pasos de un espectro), tipo del caso y ejes locales del nodo. Restaura la selección de salida.
     """
     model = normalizar(model, destino_primero=False)
+    if nodo is None:
+        nodo = _resolver_nodos(model)[0][0]
     disp_casos, disp_combos = pb._nombres_de_carga(model)
     elegido = caso if caso is not None else combinacion
     if elegido not in (disp_casos if caso is not None else disp_combos):
@@ -601,11 +658,18 @@ class NodosOpcionalesBody(_Cuerpo):
         return None if v is None else [_nombre(n, "nodo") for n in v]
 
 
-class ReaccionesBody(NodosBody):
+class ReaccionesBody(_Cuerpo):
+    # Sin ``nodos``: los seleccionados en SAP2000 o, sin selección, los que tienen restricciones.
+    nodos: list[str] | None = Field(default=None, min_length=1, max_length=MAX_NODOS_LECTURA)
     casos: list[str] = Field(default_factory=list, max_length=500)
     combinaciones: list[str] = Field(default_factory=list, max_length=500)
     # Diagnóstico: respuesta cruda de JointReact del primer nodo y del primer caso (o combinación).
     sonda: bool = False
+
+    @field_validator("nodos")
+    @classmethod
+    def _nodos(cls, v: list[str] | None) -> list[str] | None:
+        return None if v is None else [_nombre(n, "nodo") for n in v]
 
     @field_validator("casos")
     @classmethod
@@ -700,7 +764,7 @@ def install_routes(app: Any, call: Callable[[Callable[[Any], Any]], Any]) -> Non
             return call(
                 lambda model: sonda_joint_react(
                     model,
-                    body.nodos[0],
+                    body.nodos[0] if body.nodos else None,
                     body.casos[0] if body.casos else None,
                     None if body.casos else body.combinaciones[0],
                 )
