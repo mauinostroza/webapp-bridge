@@ -127,12 +127,33 @@ _GETTERS: dict[int, tuple[str, tuple, int, tuple[str, ...]]] = {
     7: ("GetPipe", ("", "", 0, 0, 0, "", ""), 7, ("h", "tw")),  # h = diámetro exterior, tw = espesor
     8: ("GetRectangle", ("", "", 0, 0, 0, "", ""), 7, ("h", "b")),
     9: ("GetCircle", ("", "", 0, 0, "", ""), 6, ("h",)),
+    # Doble canal: mismas salidas y convención que el ángulo doble (h = t3, b = t2, tf, tw y dis).
+    11: ("GetDblChannel", ("", "", 0, 0, 0, 0, 0, 0, "", ""), 10, ("h", "b", "tf", "tw")),
+}
+
+# Tipos cuyo getter es opcional: si no existe o falla, la sección se entrega solo con ``GetSectProps``
+# (``shapeSource`` = "none") en lugar de omitirse.
+_GETTER_OPCIONAL = {11}
+
+# Campos extra que entrega el getter tras ``h, b, tf, tw`` (posición en las salidas, que empiezan por
+# ``FileName`` y ``MatProp``): ala inferior de la I asimétrica y separación de los dobles.
+_EXTRAS = {
+    1: (("t2b", 6), ("tfb", 7)),
+    5: (("dis", 6),),
+    11: (("dis", 6),),
 }
 
 
-def _dimensiones(model: Any, nombre: str, tipo: int, mm: float) -> tuple[str, dict[str, float | None]]:
-    """``(material, {h, b, tf, tw})`` de la sección; el material vacío si no se pudo leer."""
+def _dimensiones(
+    model: Any, nombre: str, tipo: int, mm: float
+) -> tuple[str, dict[str, float | None], dict[str, float], bool]:
+    """``(material, {h, b, tf, tw}, extras, del_getter)`` de la sección.
+
+    ``material`` vacío si no se pudo leer; ``extras`` solo lleva ``t2b``, ``tfb`` y ``dis`` cuando el getter los
+    da y son positivos; ``del_getter`` es ``True`` si las dimensiones salen del getter tipado de la sección.
+    """
     dims: dict[str, float | None] = {"h": None, "b": None, "tf": None, "tw": None}
+    extras: dict[str, float] = {}
     definicion = _GETTERS.get(tipo)
     if definicion is not None:
         metodo, relleno, n, campos = definicion
@@ -141,34 +162,55 @@ def _dimensiones(model: Any, nombre: str, tipo: int, mm: float) -> tuple[str, di
         if salidas is not None:
             for campo, valor in zip(campos, salidas[2:]):
                 dims[campo] = _positivo(valor, mm)
-            return str(salidas[1]).strip(), dims
-        return "", dims
-    # General / definida por el usuario / doble canal: solo se intenta lo mínimo (h y b).
+            for campo, posicion in _EXTRAS.get(tipo, ()):
+                valor = _positivo(salidas[posicion], mm) if posicion < len(salidas) else None
+                if valor is not None:
+                    extras[campo] = valor
+            return str(salidas[1]).strip(), dims, extras, True
+        return "", dims, extras, False
+    # General / definida por el usuario: solo la envolvente t3 x t2 de GetGeneral (no es una forma dibujable).
     getter = getattr(model.PropFrame, "GetGeneral", None)
     if getter is not None:
         salidas = _llamar(getter, nombre, ("", "") + (0,) * 15 + ("", ""), 19)
         if salidas is not None:
             dims["h"], dims["b"] = _positivo(salidas[2], mm), _positivo(salidas[3], mm)
-            return str(salidas[1]).strip(), dims
-    return "", dims
+            return str(salidas[1]).strip(), dims, extras, False
+    return "", dims, extras, False
+
+
+# Propiedades de ``GetSectProps`` que se entregan solo si se leen y son positivas: (campo, posición, potencia de mm).
+# Orden de las salidas: Area, As2, As3, Torsion, I22, I33, S22, S33, Z22, Z33, R22, R33.
+_OPCIONALES = (
+    ("As2", 1, 2),
+    ("As3", 2, 2),
+    ("J", 3, 4),
+    ("S22", 6, 3),
+    ("S33", 7, 3),
+    ("Z22", 8, 3),
+    ("Z33", 9, 3),
+)
 
 
 def _propiedades(model: Any, nombre: str, mm: float) -> dict[str, float | None] | None:
-    """``A, I33, I22, r33, r22`` en mm de ``GetSectProps``, o ``None`` si no se pueden leer."""
-    # Area, As2, As3, Torsion, I22, I33, S22, S33, Z22, Z33, R22, R33.
+    """Propiedades de ``GetSectProps`` en mm (``A, I33, I22, r33, r22`` y, si se leen, J, As2, As3, S y Z)."""
     salidas = _llamar(model.PropFrame.GetSectProps, nombre, (0.0,) * 12, 12)
     if salidas is None:
         return None
     area, i22, i33 = _positivo(salidas[0], mm**2), _num(salidas[4], mm**4), _num(salidas[5], mm**4)
     if area is None or i22 is None or i33 is None:
         return None
-    return {
+    props: dict[str, float | None] = {
         "A": area,
         "I33": i33,
         "I22": i22,
         "r33": _num(salidas[11], mm),
         "r22": _num(salidas[10], mm),
     }
+    for campo, posicion, potencia in _OPCIONALES:
+        valor = _positivo(salidas[posicion], mm**potencia)
+        if valor is not None:  # nunca 0 ni null inventado: si no se lee, se omite el campo
+            props[campo] = valor
+    return props
 
 
 def _seccion(model: Any, nombre: str, mm: float, avisos: list[str]) -> tuple[dict[str, Any] | None, str]:
@@ -182,8 +224,8 @@ def _seccion(model: Any, nombre: str, mm: float, avisos: list[str]) -> tuple[dic
     if props is None:
         avisos.append(f"Sección {nombre}: no se pudieron leer sus propiedades (GetSectProps); se omite.")
         return None, ""
-    material, dims = _dimensiones(model, nombre, tipo, mm)
-    if not material and tipo in _GETTERS:
+    material, dims, extras, del_getter = _dimensiones(model, nombre, tipo, mm)
+    if not material and tipo in _GETTERS and tipo not in _GETTER_OPCIONAL:
         avisos.append(f"Sección {nombre}: no se pudieron leer sus dimensiones ni su material; se omite.")
         return None, ""
 
@@ -193,6 +235,10 @@ def _seccion(model: Any, nombre: str, mm: float, avisos: list[str]) -> tuple[dic
     sec["rzCalculated"] = False
     sec.update(dims)
     sec["material"] = material or None
+    sec.update(extras)
+    # "getter": las dimensiones salen del getter tipado; "none": solo hay propiedades (General, Section Designer,
+    # no prismática, autoselección…).
+    sec["shapeSource"] = "getter" if del_getter else "none"
     return sec, material
 
 
@@ -241,14 +287,24 @@ def _material(
     return material
 
 
-def read_section_props(model: Any) -> dict[str, Any]:
-    """Propiedades de todas las secciones de barra del modelo, en mm y MPa."""
+def read_section_props(model: Any, names: list[str] | None = None) -> dict[str, Any]:
+    """Propiedades de las secciones de barra del modelo, en mm y MPa.
+
+    Con ``names`` solo se leen esas secciones (las que no existen se avisan en ``warnings``); sin él, todas.
+    """
     mm, fuerza_n = _factores(model)
     avisos: list[str] = []
     try:
         nombres = sorted(_get_name_list(model.PropFrame, "PropFrame.GetNameList"))
     except Exception as exc:  # noqa: BLE001
         raise SeccionesError(f"No se pudo leer la lista de secciones: {exc}") from exc
+    if names is not None:
+        existentes = set(nombres)
+        pedidas = list(dict.fromkeys(n for n in names if n))
+        for n in pedidas:
+            if n not in existentes:
+                avisos.append(f"Sección {n}: no existe en el modelo; se omite.")
+        nombres = sorted(n for n in pedidas if n in existentes)
 
     secciones: dict[str, Any] = {}
     usados: set[str] = set()
