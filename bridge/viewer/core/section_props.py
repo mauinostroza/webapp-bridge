@@ -295,16 +295,30 @@ def read_section_props(model: Any, names: list[str] | None = None) -> dict[str, 
     mm, fuerza_n = _factores(model)
     avisos: list[str] = []
     try:
-        nombres = sorted(_get_name_list(model.PropFrame, "PropFrame.GetNameList"))
+        nombres: list[str] | None = sorted(_get_name_list(model.PropFrame, "PropFrame.GetNameList"))
     except Exception as exc:  # noqa: BLE001
-        raise SeccionesError(f"No se pudo leer la lista de secciones: {exc}") from exc
+        nombres = None
+        if names is None:
+            # Sin la lista no se puede recorrer el modelo: respuesta vacía con aviso, no un error de toda la ruta.
+            avisos.append(
+                f"No se pudo leer la lista de secciones ({exc}); pida las secciones con ?names=A,B."
+            )
+            return {"units": "mm,MPa", "sections": {}, "materials": {}, "warnings": avisos}
     if names is not None:
-        existentes = set(nombres)
         pedidas = list(dict.fromkeys(n for n in names if n))
-        for n in pedidas:
-            if n not in existentes:
-                avisos.append(f"Sección {n}: no existe en el modelo; se omite.")
-        nombres = sorted(n for n in pedidas if n in existentes)
+        if nombres is None:
+            # Sin la lista completa cada nombre se lee directamente con PropFrame.GetTypeOAPI.
+            avisos.append(
+                "No se pudo leer la lista de secciones; se leen directamente las secciones pedidas "
+                "(las que no existan se avisarán como ilegibles)."
+            )
+            nombres = sorted(pedidas)
+        else:
+            existentes = set(nombres)
+            for n in pedidas:
+                if n not in existentes:
+                    avisos.append(f"Sección {n}: no existe en el modelo; se omite.")
+            nombres = sorted(n for n in pedidas if n in existentes)
 
     secciones: dict[str, Any] = {}
     usados: set[str] = set()
