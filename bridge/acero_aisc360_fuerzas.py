@@ -482,15 +482,17 @@ def _demanda(
 
 
 def _cb_pasos(filas: list[dict[str, Any]], longitud: float, regla: bool) -> list[dict[str, Any]]:
-    """Cb de cada paso (p. ej. Max y Min por separado) de una combinación, con su indicador de interpolación."""
+    """Cb de cada paso (p. ej. Max y Min por separado) con su indicador de interpolación y la separación máxima entre estaciones (``gap_max_m``) usada para calcularlo."""
     fuerte, *_ = _ejes()
     salida = []
     for paso in dict.fromkeys(f["step"] for f in filas):
         grupo = sorted((f for f in filas if f["step"] == paso), key=lambda f: f["x"])
-        cb, interpolado, forzado, _gap = cb_para_demanda(
+        cb, interpolado, forzado, gap = cb_para_demanda(
             [f["x"] for f in grupo], [f[fuerte] for f in grupo], longitud, regla=regla
         )
-        salida.append({"step": paso, "Cb": cb, "interpolado": interpolado, "forzado": forzado})
+        salida.append(
+            {"step": paso, "Cb": cb, "interpolado": interpolado, "forzado": forzado, "gap_max_m": gap}
+        )
     return salida
 
 
