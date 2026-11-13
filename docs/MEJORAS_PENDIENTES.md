@@ -14,6 +14,7 @@ Ideas detectadas en las revisiones del puente. **No están hechas**; se dejan aq
   - Mitigación: conservar `ifcopenshell` solo como dependencia de desarrollo (CI y pruebas: `validate`, volúmenes con
     `geom`) y comparar la salida del escritor propio con la de la librería.
   - Esfuerzo estimado: unos días (51 entidades, pruebas de equivalencia).
+  - **Plan detallado (guardado para ejecutarlo más adelante): [`docs/PLAN_ESCRITOR_IFC.md`](PLAN_ESCRITOR_IFC.md).**
 - **Si se retoma con `ifcopenshell` empaquetada:** medir el peso real del `.exe` con `--collect-all`, valorar recoger
   solo IFC4, y revisar la licencia LGPL frente al «Todos los derechos reservados» del README.
 
