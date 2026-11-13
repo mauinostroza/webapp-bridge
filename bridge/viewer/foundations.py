@@ -51,6 +51,7 @@ def resultados(
     with bulk.preserve_output_selection(model, avisos):
         # shells=None con nudos dados = no se lee la tabla de presiones (no hay shells que pedir).
         datos = _snapshot_from_model(model, echo, joints, shells or None, cases, combos)
+    areas, faltantes = _areas_y_faltantes(model, joints, shells, avisos)
     truncado = False
     for clave in _LISTAS_CON_TOPE:
         if len(datos[clave]) > MAX_FILAS:
@@ -68,7 +69,45 @@ def resultados(
         "model_locked": datos["model_locked"],
         "truncated": truncado,
         "warnings": avisos,
+        # Aditivos: nudos de cada área y nombres pedidos que no existen (omitido si no se pudo comprobar).
+        "areas": areas,
+        **({"faltantes": faltantes} if faltantes is not None else {}),
     }
+
+
+def _nombres(model: Any, objeto: str, operacion: str) -> set[str] | None:
+    from bridge.actions import _get_name_list
+
+    try:
+        return set(_get_name_list(getattr(model, objeto), operacion))
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _areas_y_faltantes(
+    model: Any, joints: list[str], shells: list[str], avisos: list[str]
+) -> tuple[list[dict[str, Any]], dict[str, list[str]] | None]:
+    """Nudos de cada área pedida (``AreaObj.GetPoints``) y los nombres pedidos que no existen en el modelo."""
+    from bridge.viewer.sap2000.reader_geometry import _area_points
+
+    areas: list[dict[str, Any]] = []
+    area_obj = getattr(model, "AreaObj", None)
+    for nombre in shells:
+        puntos = _area_points(area_obj, nombre) if area_obj is not None else []
+        if puntos:
+            areas.append({"name": nombre, "nodes": puntos})
+        else:
+            avisos.append(f"Área {nombre}: no se pudieron leer sus nudos (AreaObj.GetPoints); se omite en areas.")
+    puntos_modelo = _nombres(model, "PointObj", "PointObj.GetNameList")
+    areas_modelo = _nombres(model, "AreaObj", "AreaObj.GetNameList")
+    if puntos_modelo is None or areas_modelo is None:
+        avisos.append("No se pudo leer la lista de nudos o de áreas del modelo; no se confirman los nombres.")
+        return areas, None
+    faltantes = {
+        "joints": [n for n in joints if n not in puntos_modelo],
+        "shells": [n for n in shells if n not in areas_modelo],
+    }
+    return areas, faltantes
 
 
 def grupos(model: Any) -> dict[str, Any]:

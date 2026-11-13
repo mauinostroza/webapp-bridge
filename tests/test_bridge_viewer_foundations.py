@@ -65,6 +65,13 @@ class _Puntos(_Lista):
         return (0, float(n), 0.0, 0.0)
 
 
+class _Areas(_Lista):
+    def GetPoints(self, nombre, *a):
+        if nombre not in {"A1", "A9"}:
+            raise RuntimeError("área desconocida")
+        return (3, ("1", "2", "3"), 0)
+
+
 class _Tablas:
     @staticmethod
     def GetTableForDisplayArray(*args):
@@ -81,6 +88,7 @@ class FakeFund:
         self.RespCombo = _Lista(("U1", "U9"))
         self.PointObj = _Puntos(("1", "2", "3"))
         self.DatabaseTables = _Tablas()
+        self.AreaObj = _Areas(("A1", "A9"))
 
     def GetPresentUnits(self):
         return self.units
@@ -135,3 +143,19 @@ def test_resultados_trunca_a_50000_filas(monkeypatch):
 def test_sin_shells_no_se_lee_la_tabla_de_presiones():
     res = fund.resultados(FakeFund(), [{"name": "F", "joints": ["1"], "shells": []}], ["DEAD"], None)
     assert res["soil_pressures"] == []
+
+
+def test_resultados_trae_los_nudos_de_cada_area_y_los_nombres_que_faltan():
+    grupos = [{"name": "F1", "joints": ["1", "99"], "shells": ["A1", "A404"]}]
+    res = fund.resultados(FakeFund(), grupos, ["DEAD"], None)
+    assert res["areas"] == [{"name": "A1", "nodes": ["1", "2", "3"]}]
+    assert res["faltantes"] == {"joints": ["99"], "shells": ["A404"]}
+    assert any(w.startswith("Área A404:") for w in res["warnings"])
+
+
+def test_resultados_sin_lista_de_nombres_omite_faltantes_con_aviso():
+    model = FakeFund()
+    model.AreaObj.GetNameList = lambda *a: object()
+    res = fund.resultados(model, [{"name": "F", "joints": ["1"], "shells": ["A1"]}], ["DEAD"], None)
+    assert "faltantes" not in res and res["areas"][0]["name"] == "A1"
+    assert any("no se confirman los nombres" in w for w in res["warnings"])

@@ -664,3 +664,9 @@ def test_demanda_por_estacion_no_mezcla_estaciones_ni_pasos(barra_envolvente):
     assert (m["Pu_kN"], m["Tu_kN"]) == (0.0, pytest.approx(7.0))
     assert m["Mux_kNm"] == pytest.approx(50.0)
     assert m["Cb"] > 1.0
+
+
+def test_cb_pasos_incluye_la_separacion_maxima_entre_estaciones(barra_envolvente):
+    res = leer_fuerzas(FakeAcero(), ["ENV"], ["U1"], por_estacion=True)
+    pasos = {p["step"]: p for p in res["demandas"][0]["cb_pasos"]}
+    assert pasos["Max"]["gap_max_m"] == pytest.approx(1.5) and pasos["Min"]["gap_max_m"] == pytest.approx(1.5)
