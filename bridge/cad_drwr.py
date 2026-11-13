@@ -7,6 +7,8 @@ Monta bajo /v1/sap/actions/cad/:
 - draw/begin  abre una sesión de dibujo (exige confirmed=true).
 - draw/batch  envía un lote de entidades (<= 1000) a la sesión activa.
 - draw/end    regenera, hace zoom a la extensión y libera la sesión.
+- ifc         genera un IFC4 desde el modelo semántico estructura-v1 (bridge.cad_ifc);
+              no usa el CAD ni COM, solo ifcopenshell (503 si falta).
 
 Todas las llamadas COM pasan por CadActor, un hilo daemon con apartamento
 STA propio. No se usa el actor del puente SAP porque su timeout de 30 s no
@@ -20,6 +22,7 @@ Errores: validación = 422 con mensaje en español (sólo para estas rutas);
 COM / sesión / timeout = 409 con el detalle real de la excepción.
 """
 
+import base64
 import math
 import queue
 import threading
@@ -27,7 +30,7 @@ import time
 import uuid
 from concurrent.futures import Future
 from concurrent.futures import TimeoutError as _FuturoTimeout
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, HTTPException
 from fastapi.exceptions import RequestValidationError
@@ -36,6 +39,7 @@ from fastapi.routing import APIRoute
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from bridge import cad_com_live as cc
+from bridge import cad_ifc
 from bridge import cad_prims as ir
 
 PREFIJO = "/v1/sap/actions/cad"
@@ -96,6 +100,11 @@ class BeginIn(BaseModel):
 class EndIn(BaseModel):
     model_config = _CFG
     sesion: Annotated[str, Field(min_length=1, max_length=MAX_NOMBRE)]
+
+
+class IfcIn(BaseModel):
+    model_config = _CFG
+    modelo: dict[str, Any]
 
 
 class _Ent(BaseModel):
@@ -398,7 +407,9 @@ class ServicioCad:
                 "detalle": detalle,
             }
 
-        return self._ejecutar(fn, TIMEOUT_STATUS_S)
+        res = self._ejecutar(fn, TIMEOUT_STATUS_S)
+        res["ifc"] = cad_ifc.disponible()  # la exportación IFC no depende del CAD, solo de ifcopenshell
+        return res
 
     def pick(self, mensaje: str | None, timeout_s: int) -> dict:
         def fn():
@@ -541,6 +552,20 @@ def install_routes(app, call=None):
     @router.post(PREFIJO + "/draw/end")
     def cad_draw_end(body: EndIn):
         return servicio.end(body.sesion)
+
+    @router.post(PREFIJO + "/ifc")
+    def cad_ifc_generar(body: IfcIn):
+        try:
+            nombre, datos = cad_ifc.generar_ifc(body.modelo)
+        except cad_ifc.FaltaIfcopenshell as exc:
+            raise HTTPException(503, str(exc)) from exc
+        except cad_ifc.ErrorModelo as exc:
+            raise _error_422(("body", "modelo"), str(exc)) from exc
+        return {
+            "nombre": nombre,
+            "tamano": len(datos),
+            "contenido_base64": base64.b64encode(datos).decode("ascii"),
+        }
 
     app.include_router(router)
     if call is not None:

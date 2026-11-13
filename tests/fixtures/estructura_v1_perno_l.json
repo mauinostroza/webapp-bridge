@@ -1,0 +1,272 @@
+{
+ "formato": "estructura-v1",
+ "unidades": "mm",
+ "id": "perno_anclaje",
+ "nombre": "Perno L Ø25.4",
+ "tipo": "perno_anclaje",
+ "modulo": "perno_anclaje",
+ "origen": [
+  0.0,
+  0.0,
+  0.0
+ ],
+ "angulo": 0.0,
+ "vinculo": {},
+ "avisos": [
+  "Se modela una pieza; cantidad total del cuadro: 48."
+ ],
+ "resumen": {
+  "peso_acero_kg": 5.96
+ },
+ "elementos": [
+  {
+   "id": "hormigon",
+   "clase": "Pedestal",
+   "nombre": "Hormigón de apoyo",
+   "marca": "",
+   "material": {
+    "nombre": "Hormigón",
+    "tipo": "hormigon"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      -202.0,
+      -202.0
+     ],
+     [
+      202.0,
+      -202.0
+     ],
+     [
+      202.0,
+      202.0
+     ],
+     [
+      -202.0,
+      202.0
+     ]
+    ],
+    "h": 970.0,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      -970.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    }
+   },
+   "cantidad": 1,
+   "meta": {
+    "supuesto": "bloque cuadrado de apoyo"
+   }
+  },
+  {
+   "id": "perno",
+   "clase": "PernoAnclaje",
+   "nombre": "Perno Ø25.4",
+   "marca": "P1",
+   "material": {
+    "nombre": "Perno A307",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "barrido",
+    "d": 25.4,
+    "eje": [
+     [
+      "L",
+      [
+       150.0,
+       0.0,
+       -850.0
+      ],
+      [
+       76.2,
+       0.0,
+       -850.0
+      ]
+     ],
+     [
+      "A",
+      [
+       76.2,
+       0.0,
+       -850.0
+      ],
+      [
+       22.318,
+       0.0,
+       -827.682
+      ],
+      [
+       -0.0,
+       0.0,
+       -773.8
+      ]
+     ],
+     [
+      "L",
+      [
+       0.0,
+       0.0,
+       -773.8
+      ],
+      [
+       0.0,
+       0.0,
+       400.0
+      ]
+     ]
+    ],
+    "instancias": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ]
+    ]
+   },
+   "cantidad": 1,
+   "padre": "hormigon",
+   "diametro": 25.4,
+   "longitud": 1367.295,
+   "peso": 5.44
+  },
+  {
+   "id": "arandela",
+   "clase": "Arandela",
+   "nombre": "Arandela Ø25.4",
+   "marca": "",
+   "material": {
+    "nombre": "Perno A307",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      -38.1,
+      -38.1
+     ],
+     [
+      38.1,
+      -38.1
+     ],
+     [
+      38.1,
+      38.1
+     ],
+     [
+      -38.1,
+      38.1
+     ]
+    ],
+    "h": 5.0,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    },
+    "instancias": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ]
+    ]
+   },
+   "cantidad": 1,
+   "peso": 0.23
+  },
+  {
+   "id": "tuerca",
+   "clase": "Tuerca",
+   "nombre": "Tuerca M25.4",
+   "marca": "",
+   "material": {
+    "nombre": "Perno A307",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      26.396,
+      0.0
+     ],
+     [
+      13.198,
+      22.86
+     ],
+     [
+      -13.198,
+      22.86
+     ],
+     [
+      -26.396,
+      0.0
+     ],
+     [
+      -13.198,
+      -22.86
+     ],
+     [
+      13.198,
+      -22.86
+     ]
+    ],
+    "h": 20.32,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      5.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    },
+    "instancias": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ]
+    ]
+   },
+   "cantidad": 1,
+   "peso": 0.29
+  }
+ ]
+}

@@ -24,7 +24,10 @@ RAIZ = pathlib.Path(__file__).resolve().parents[1]  # workbench_module
 if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
-from bridge import cad_drwr  # noqa: E402
+from bridge import (
+    cad_drwr,  # noqa: E402
+    cad_ifc,  # noqa: E402
+)
 from bridge import cad_prims as ir  # noqa: E402
 
 PREF = "/v1/sap/actions/cad"
@@ -352,6 +355,7 @@ def test_status_con_cad(cliente):
         "version": "25.0",
         "documento": "Dibujo1.dwg",
         "detalle": "ZWCAD | versión 25.0 | documento: Dibujo1.dwg",
+        "ifc": cad_ifc.disponible(),
     }
     assert sorted(r.json()) == claves_contrato("/status")
 

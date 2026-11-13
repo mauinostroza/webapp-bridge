@@ -370,7 +370,8 @@ Todas son `POST` bajo `/v1/sap/actions/cad/`. Las del CAD usan un actor COM prop
 
 | Ruta | Efecto |
 |---|---|
-| `cad/status` | Detecta AutoCAD/ZWCAD/BricsCAD abierto: `{conectado, programa, version, documento, detalle}` (200 incluso sin CAD). |
+| `cad/status` | Detecta AutoCAD/ZWCAD/BricsCAD abierto: `{conectado, programa, version, documento, detalle, ifc}` (200 incluso sin CAD; `ifc` indica si el puente tiene `ifcopenshell`). |
+| `cad/ifc` | Genera un IFC4 desde el modelo semántico `estructura-v1` (no usa el CAD ni SAP2000). `{modelo}` → `{nombre: "<id>.ifc", tamano, contenido_base64}`. 422 si el modelo no vale (formato distinto, unidades no `mm`, geometría desconocida, más de 5000 instancias de barras o más de 2 MB de JSON); 503 si el puente no tiene `ifcopenshell`. Detalle y límites en `docs/CAD_IFC.md`. |
 | `cad/pick` | Pide un clic de inserción en el CAD (comando nativo, foco forzado con `AttachThreadInput`). `{mensaje?, timeout_s?}` → `{x, y}`. Cancelación o error COM → 409 con el texto real. |
 | `cad/draw/begin` | Abre una sesión de dibujo (**exige `confirmed: true`**): crea capas y variables de cota. `{confirmed, origen?, n_total, th}` → `{sesion, programa, documento}`. TTL 10 min. |
 | `cad/draw/batch` | Emite hasta 1000 entidades (`line`, `circle`, `arc`, `poly`, `filled`, `text`, `dim`). Valida tipos, números finitos, capas, textos ≤ 500 y polilíneas ≤ 2000 puntos. `{sesion, ents}` → `{creadas, omitidas, errores:[{indice,tipo,motivo}]}`. |

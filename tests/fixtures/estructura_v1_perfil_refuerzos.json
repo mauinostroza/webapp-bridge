@@ -1,0 +1,554 @@
+{
+ "formato": "estructura-v1",
+ "unidades": "mm",
+ "id": "perfil_refuerzos",
+ "nombre": "Perfil I / W W250X25 con refuerzos",
+ "tipo": "perfil_refuerzos",
+ "modulo": "perfil_refuerzos",
+ "origen": [
+  0.0,
+  0.0,
+  0.0
+ ],
+ "angulo": 0.0,
+ "vinculo": {},
+ "avisos": [],
+ "resumen": {
+  "peso_acero_kg": 195.54
+ },
+ "elementos": [
+  {
+   "id": "perfil",
+   "clase": "Perfil",
+   "nombre": "Perfil I / W W250X25",
+   "marca": "",
+   "material": {
+    "nombre": "Acero estructural",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      -50.5,
+      128.5
+     ],
+     [
+      50.5,
+      128.5
+     ],
+     [
+      50.5,
+      120.1
+     ],
+     [
+      2.9,
+      120.1
+     ],
+     [
+      2.9,
+      -120.1
+     ],
+     [
+      50.5,
+      -120.1
+     ],
+     [
+      50.5,
+      -128.5
+     ],
+     [
+      -50.5,
+      -128.5
+     ],
+     [
+      -50.5,
+      -120.1
+     ],
+     [
+      -2.9,
+      -120.1
+     ],
+     [
+      -2.9,
+      120.1
+     ],
+     [
+      -50.5,
+      120.1
+     ]
+    ],
+    "h": 3000.0,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    }
+   },
+   "cantidad": 1,
+   "peso": 72.77,
+   "meta": {
+    "seccion": "W250X25",
+    "tipo_perfil": "Perfil I / W",
+    "area_mm2": 3089.96,
+    "peso_lineal_kg_m": 24.256
+   }
+  },
+  {
+   "id": "plancha1",
+   "clase": "Rigidizador",
+   "nombre": "PL 150x10 (ALA SUP.)",
+   "marca": "PL1",
+   "material": {
+    "nombre": "Acero estructural",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      -75.0,
+      128.5
+     ],
+     [
+      75.0,
+      128.5
+     ],
+     [
+      75.0,
+      138.5
+     ],
+     [
+      -75.0,
+      138.5
+     ]
+    ],
+    "h": 2000.0,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      500.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    }
+   },
+   "cantidad": 1,
+   "padre": "perfil",
+   "peso": 23.55,
+   "meta": {
+    "ancho": 150.0,
+    "espesor": 10.0
+   }
+  },
+  {
+   "id": "plancha2",
+   "clase": "Rigidizador",
+   "nombre": "PL 150x10 (ALA INF.)",
+   "marca": "PL2",
+   "material": {
+    "nombre": "Acero estructural",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      -75.0,
+      -138.5
+     ],
+     [
+      75.0,
+      -138.5
+     ],
+     [
+      75.0,
+      -128.5
+     ],
+     [
+      -75.0,
+      -128.5
+     ]
+    ],
+    "h": 2000.0,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      500.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    }
+   },
+   "cantidad": 1,
+   "padre": "perfil",
+   "peso": 23.55,
+   "meta": {
+    "ancho": 150.0,
+    "espesor": 10.0
+   }
+  },
+  {
+   "id": "plancha3",
+   "clase": "Rigidizador",
+   "nombre": "PL 240.2x10 (ALMA)",
+   "marca": "PL3",
+   "material": {
+    "nombre": "Acero estructural",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      2.9,
+      -120.1
+     ],
+     [
+      12.9,
+      -120.1
+     ],
+     [
+      12.9,
+      120.1
+     ],
+     [
+      2.9,
+      120.1
+     ]
+    ],
+    "h": 2000.0,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      500.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    }
+   },
+   "cantidad": 1,
+   "padre": "perfil",
+   "peso": 37.71,
+   "meta": {
+    "ancho": 240.2,
+    "espesor": 10.0
+   }
+  },
+  {
+   "id": "plancha4",
+   "clase": "Rigidizador",
+   "nombre": "PL 240.2x10 (ALMA)",
+   "marca": "PL4",
+   "material": {
+    "nombre": "Acero estructural",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      -12.9,
+      -120.1
+     ],
+     [
+      -2.9,
+      -120.1
+     ],
+     [
+      -2.9,
+      120.1
+     ],
+     [
+      -12.9,
+      120.1
+     ]
+    ],
+    "h": 2000.0,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      500.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    }
+   },
+   "cantidad": 1,
+   "padre": "perfil",
+   "peso": 37.71,
+   "meta": {
+    "ancho": 240.2,
+    "espesor": 10.0
+   }
+  },
+  {
+   "id": "rigidizador5_1",
+   "clase": "Rigidizador",
+   "nombre": "Rigidizador Rigidizador Sup.",
+   "marca": "R5",
+   "material": {
+    "nombre": "Acero estructural",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      40.5,
+      138.5
+     ],
+     [
+      50.5,
+      138.5
+     ],
+     [
+      50.5,
+      218.5
+     ],
+     [
+      40.5,
+      218.5
+     ]
+    ],
+    "h": 10.0,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      500.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    }
+   },
+   "cantidad": 1,
+   "padre": "perfil",
+   "peso": 0.06,
+   "meta": {
+    "segun": "franjas de extremo de la elevación 2D"
+   }
+  },
+  {
+   "id": "rigidizador5_2",
+   "clase": "Rigidizador",
+   "nombre": "Rigidizador Rigidizador Sup.",
+   "marca": "R5",
+   "material": {
+    "nombre": "Acero estructural",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      40.5,
+      138.5
+     ],
+     [
+      50.5,
+      138.5
+     ],
+     [
+      50.5,
+      218.5
+     ],
+     [
+      40.5,
+      218.5
+     ]
+    ],
+    "h": 10.0,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      2490.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    }
+   },
+   "cantidad": 1,
+   "padre": "perfil",
+   "peso": 0.06,
+   "meta": {
+    "segun": "franjas de extremo de la elevación 2D"
+   }
+  },
+  {
+   "id": "rigidizador6_1",
+   "clase": "Rigidizador",
+   "nombre": "Rigidizador Rigidizador Sup.",
+   "marca": "R6",
+   "material": {
+    "nombre": "Acero estructural",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      -50.5,
+      138.5
+     ],
+     [
+      -40.5,
+      138.5
+     ],
+     [
+      -40.5,
+      218.5
+     ],
+     [
+      -50.5,
+      218.5
+     ]
+    ],
+    "h": 10.0,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      500.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    }
+   },
+   "cantidad": 1,
+   "padre": "perfil",
+   "peso": 0.06,
+   "meta": {
+    "segun": "franjas de extremo de la elevación 2D"
+   }
+  },
+  {
+   "id": "rigidizador6_2",
+   "clase": "Rigidizador",
+   "nombre": "Rigidizador Rigidizador Sup.",
+   "marca": "R6",
+   "material": {
+    "nombre": "Acero estructural",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      -50.5,
+      138.5
+     ],
+     [
+      -40.5,
+      138.5
+     ],
+     [
+      -40.5,
+      218.5
+     ],
+     [
+      -50.5,
+      218.5
+     ]
+    ],
+    "h": 10.0,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      2490.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    }
+   },
+   "cantidad": 1,
+   "padre": "perfil",
+   "peso": 0.06,
+   "meta": {
+    "segun": "franjas de extremo de la elevación 2D"
+   }
+  }
+ ]
+}

@@ -23,6 +23,8 @@ Invoke-Native $venvPython -c "import sys; assert sys.version_info[:2] == (3, 12)
 Invoke-Native $venvPython -m pip install --upgrade pip
 Invoke-Native $venvPython -m pip install -r backend\requirements.txt pyinstaller pywin32 comtypes
 Invoke-Native $venvPython -m pip install -r backend\requirements-integrados.txt
+# ifcopenshell: solo para la ruta /v1/sap/actions/cad/ifc del puente (docs/CAD_IFC.md).
+Invoke-Native $venvPython -m pip install -r backend\requirements-puente-ifc.txt
 
 # Cada símbolo win32* que usa la bandeja debe existir en pywin32 (si no, solo fallaba al abrir el .exe).
 Invoke-Native $venvPython -m pip install pytest
@@ -39,7 +41,8 @@ $dataArgs = @(
     "--add-data", "backend\report_builder\generators\schemas;backend\report_builder\generators\schemas",
     "--add-data", "backend\report_builder\generators\catalogo.json;backend\report_builder\generators",
     "--collect-data", "docx",
-    "--collect-data", "ezdxf"
+    "--collect-data", "ezdxf",
+    "--collect-all", "ifcopenshell"
 )
 $hiddenImports = @(
     "--hidden-import", "bridge.sap2000_agent",

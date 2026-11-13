@@ -1,0 +1,5 @@
+# Dependencias SOLO del puente local (SAP2000Bridge.exe y webapp-bridge), no del servidor.
+# ifcopenshell escribe el IFC de la ruta POST /v1/sap/actions/cad/ifc (bridge/cad_ifc.py; ver docs/CAD_IFC.md).
+# No va en backend/requirements.txt ni en requirements-integrados.txt: la imagen Docker del servidor no la instala
+# (el IFC se genera en el puente, no en el servidor). Sin ella el puente arranca igual y la ruta responde 503.
+ifcopenshell==0.9.0.post1

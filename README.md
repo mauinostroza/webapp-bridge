@@ -39,7 +39,7 @@ orígenes que se le indiquen:
 ## Desarrollo
 
 ```
-pip install -r backend/requirements.txt -r backend/requirements-dev.txt -r backend/requirements-integrados.txt
+pip install -r backend/requirements.txt -r backend/requirements-dev.txt -r backend/requirements-integrados.txt -r backend/requirements-puente-ifc.txt
 ruff check . && ruff format --check .
 python -m pytest -q
 ```
