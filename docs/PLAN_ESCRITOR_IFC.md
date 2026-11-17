@@ -189,10 +189,17 @@ class ArchivoStep:
 - **GlobalId:** se porta el algoritmo de `ifcopenshell.guid.compress` (dominio público); se comprueba contra la librería en CI.
   ```python
   _C = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_$"
-  def _b64(v, n): return "".join(_C[(v // 64**i) % 64] for i in range(n))[::-1]
+
+
+  def _b64(v, n):
+      return "".join(_C[(v // 64**i) % 64] for i in range(n))[::-1]
+
+
   def comprimir_guid(h: str) -> str:
-      b = bytes.fromhex(h)            # 16 bytes
-      return _b64(b[0], 2) + "".join(_b64((b[i] << 16) | (b[i+1] << 8) | b[i+2], 4) for i in range(1, 16, 3))
+      b = bytes.fromhex(h)  # 16 bytes
+      return _b64(b[0], 2) + "".join(
+          _b64((b[i] << 16) | (b[i + 1] << 8) | b[i + 2], 4) for i in range(1, 16, 3)
+      )
   ```
   Determinismo igual que ahora: `uuid5(_NS, "/".join(partes))` (l. 51 y 535-539); los GlobalId serán **idénticos** a los de
   la versión con ifcopenshell.
