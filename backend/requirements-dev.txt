@@ -1,3 +1,5 @@
 # Herramientas de desarrollo. No se incluyen en la imagen ni en el portable.
 ruff==0.16.7
 pytest==9.1.1
+# Referencia del IFC (solo pruebas y generador del esquema; el puente NO la lleva): scripts/generar_esquema_ifc4.py y tests/test_ifc_*.py
+ifcopenshell==0.9.0.post1

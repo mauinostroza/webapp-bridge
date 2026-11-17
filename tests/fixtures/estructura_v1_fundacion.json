@@ -1,0 +1,211 @@
+{
+ "formato": "estructura-v1",
+ "unidades": "mm",
+ "id": "fundacion",
+ "nombre": "F",
+ "tipo": "fundacion",
+ "modulo": "fundacion_sap",
+ "origen": [
+  1500.0,
+  1750.0,
+  -1000.0
+ ],
+ "angulo": 0.0,
+ "vinculo": {
+  "frames": [
+   "C1",
+   "C2"
+  ],
+  "areas": [
+   "A1"
+  ],
+  "joints": [
+   "1",
+   "2",
+   "3",
+   "4"
+  ]
+ },
+ "avisos": [
+  "C2: sección aproximada (sección no rectangular)"
+ ],
+ "resumen": {
+  "peso_acero_kg": 0.0
+ },
+ "elementos": [
+  {
+   "id": "z1_a1",
+   "clase": "Zapata",
+   "nombre": "F1 · A1",
+   "marca": "F1",
+   "material": {
+    "nombre": "Hormigón",
+    "tipo": "hormigon"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      -1500.0,
+      -1750.0
+     ],
+     [
+      1500.0,
+      -1750.0
+     ],
+     [
+      1500.0,
+      1750.0
+     ],
+     [
+      -1500.0,
+      1750.0
+     ]
+    ],
+    "h": 400.0,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      -400.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    }
+   },
+   "cantidad": 1,
+   "meta": {
+    "area": "A1",
+    "seccion": "S",
+    "pts_nombres": [
+     "1",
+     "2",
+     "3",
+     "4"
+    ],
+    "zapata": "F1"
+   }
+  },
+  {
+   "id": "z1_p1",
+   "clase": "Pedestal",
+   "nombre": "Pedestal C1",
+   "marca": "C1",
+   "material": {
+    "nombre": "Hormigón",
+    "tipo": "hormigon"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      -200.0,
+      -150.0
+     ],
+     [
+      200.0,
+      -150.0
+     ],
+     [
+      200.0,
+      150.0
+     ],
+     [
+      -200.0,
+      150.0
+     ]
+    ],
+    "h": 300.0,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    }
+   },
+   "cantidad": 1,
+   "meta": {
+    "frame": "C1",
+    "punto_pie": "5",
+    "zapata": "F1",
+    "continuacion": "esquemática"
+   }
+  },
+  {
+   "id": "z1_p2",
+   "clase": "Pedestal",
+   "nombre": "Pedestal C2",
+   "marca": "C2",
+   "material": {
+    "nombre": "Hormigón",
+    "tipo": "hormigon"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      -1150.0,
+      -1450.0
+     ],
+     [
+      -850.0,
+      -1450.0
+     ],
+     [
+      -850.0,
+      -1050.0
+     ],
+     [
+      -1150.0,
+      -1050.0
+     ]
+    ],
+    "h": 300.0,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    }
+   },
+   "cantidad": 1,
+   "meta": {
+    "frame": "C2",
+    "punto_pie": "6",
+    "zapata": "F1",
+    "continuacion": "esquemática",
+    "aproximado": true
+   }
+  }
+ ]
+}

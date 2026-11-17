@@ -1,0 +1,507 @@
+{
+ "formato": "estructura-v1",
+ "unidades": "mm",
+ "id": "perno_anclaje",
+ "nombre": "Perno PG Ø1\"",
+ "tipo": "perno_anclaje",
+ "modulo": "perno_anclaje",
+ "origen": [
+  0.0,
+  0.0,
+  0.0
+ ],
+ "angulo": 0.0,
+ "vinculo": {},
+ "avisos": [
+  "Se modela una pieza; cantidad total del cuadro: 48."
+ ],
+ "resumen": {
+  "peso_acero_kg": 6.89
+ },
+ "elementos": [
+  {
+   "id": "hormigon",
+   "clase": "Pedestal",
+   "nombre": "Hormigón de apoyo",
+   "marca": "",
+   "material": {
+    "nombre": "Hormigón",
+    "tipo": "hormigon"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      -177.8,
+      -177.8
+     ],
+     [
+      177.8,
+      -177.8
+     ],
+     [
+      177.8,
+      177.8
+     ],
+     [
+      -177.8,
+      177.8
+     ]
+    ],
+    "h": 970.0,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      -970.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    }
+   },
+   "cantidad": 1,
+   "meta": {
+    "supuesto": "bloque cuadrado de apoyo"
+   }
+  },
+  {
+   "id": "perno",
+   "clase": "PernoAnclaje",
+   "nombre": "Perno Ø25.4",
+   "marca": "P1",
+   "material": {
+    "nombre": "Perno A307",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "barrido",
+    "d": 25.4,
+    "eje": [
+     [
+      "L",
+      [
+       0.0,
+       0.0,
+       -850.0
+      ],
+      [
+       0.0,
+       0.0,
+       400.0
+      ]
+     ]
+    ],
+    "instancias": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ]
+    ]
+   },
+   "cantidad": 1,
+   "padre": "hormigon",
+   "diametro": 25.4,
+   "longitud": 1250.0,
+   "peso": 4.97
+  },
+  {
+   "id": "golilla_cuadrada",
+   "clase": "Arandela",
+   "nombre": "Golilla cuadrada",
+   "marca": "",
+   "material": {
+    "nombre": "Perno A307",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      -37.5,
+      -37.5
+     ],
+     [
+      37.5,
+      -37.5
+     ],
+     [
+      37.5,
+      37.5
+     ],
+     [
+      -37.5,
+      37.5
+     ]
+    ],
+    "h": 20.0,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      -800.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    }
+   },
+   "cantidad": 1,
+   "peso": 0.88,
+   "meta": {
+    "W": 75.0
+   }
+  },
+  {
+   "id": "tuerca_inf",
+   "clase": "Tuerca",
+   "nombre": "Tuerca inferior M25.4",
+   "marca": "",
+   "material": {
+    "nombre": "Perno A307",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      26.396,
+      0.0
+     ],
+     [
+      13.198,
+      22.86
+     ],
+     [
+      -13.198,
+      22.86
+     ],
+     [
+      -26.396,
+      0.0
+     ],
+     [
+      -13.198,
+      -22.86
+     ],
+     [
+      13.198,
+      -22.86
+     ]
+    ],
+    "h": 20.32,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      -820.32
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    },
+    "instancias": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ]
+    ]
+   },
+   "cantidad": 1,
+   "peso": 0.29
+  },
+  {
+   "id": "golilla_sup",
+   "clase": "Arandela",
+   "nombre": "Golilla Ø25.4",
+   "marca": "",
+   "material": {
+    "nombre": "Perno A307",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      36.83,
+      0.0
+     ],
+     [
+      35.575,
+      9.532
+     ],
+     [
+      31.896,
+      18.415
+     ],
+     [
+      26.043,
+      26.043
+     ],
+     [
+      18.415,
+      31.896
+     ],
+     [
+      9.532,
+      35.575
+     ],
+     [
+      0.0,
+      36.83
+     ],
+     [
+      -9.532,
+      35.575
+     ],
+     [
+      -18.415,
+      31.896
+     ],
+     [
+      -26.043,
+      26.043
+     ],
+     [
+      -31.896,
+      18.415
+     ],
+     [
+      -35.575,
+      9.532
+     ],
+     [
+      -36.83,
+      0.0
+     ],
+     [
+      -35.575,
+      -9.532
+     ],
+     [
+      -31.896,
+      -18.415
+     ],
+     [
+      -26.043,
+      -26.043
+     ],
+     [
+      -18.415,
+      -31.896
+     ],
+     [
+      -9.532,
+      -35.575
+     ],
+     [
+      -0.0,
+      -36.83
+     ],
+     [
+      9.532,
+      -35.575
+     ],
+     [
+      18.415,
+      -31.896
+     ],
+     [
+      26.043,
+      -26.043
+     ],
+     [
+      31.896,
+      -18.415
+     ],
+     [
+      35.575,
+      -9.532
+     ]
+    ],
+    "h": 5.08,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      341.58
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    },
+    "instancias": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ]
+    ]
+   },
+   "cantidad": 1,
+   "peso": 0.17
+  },
+  {
+   "id": "tuerca_sup",
+   "clase": "Tuerca",
+   "nombre": "Tuerca M25.4",
+   "marca": "",
+   "material": {
+    "nombre": "Perno A307",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      26.396,
+      0.0
+     ],
+     [
+      13.198,
+      22.86
+     ],
+     [
+      -13.198,
+      22.86
+     ],
+     [
+      -26.396,
+      0.0
+     ],
+     [
+      -13.198,
+      -22.86
+     ],
+     [
+      13.198,
+      -22.86
+     ]
+    ],
+    "h": 20.32,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      346.66
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    },
+    "instancias": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ]
+    ]
+   },
+   "cantidad": 1,
+   "peso": 0.29
+  },
+  {
+   "id": "contratuerca",
+   "clase": "Tuerca",
+   "nombre": "Contratuerca M25.4",
+   "marca": "",
+   "material": {
+    "nombre": "Perno A307",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      26.396,
+      0.0
+     ],
+     [
+      13.198,
+      22.86
+     ],
+     [
+      -13.198,
+      22.86
+     ],
+     [
+      -26.396,
+      0.0
+     ],
+     [
+      -13.198,
+      -22.86
+     ],
+     [
+      13.198,
+      -22.86
+     ]
+    ],
+    "h": 20.32,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      366.98
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    },
+    "instancias": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ]
+    ]
+   },
+   "cantidad": 1,
+   "peso": 0.29
+  }
+ ]
+}

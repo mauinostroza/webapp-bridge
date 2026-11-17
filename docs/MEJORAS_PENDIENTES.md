@@ -3,20 +3,14 @@
 Ideas detectadas en las revisiones del puente. **No están hechas**; se dejan aquí para decidir más tarde.
 
 ## Exportación IFC
-- **Estado:** la ruta `POST /v1/sap/actions/cad/ifc` (IFC4 desde un modelo `estructura-v1`, con `ifcopenshell`) **no está
-  en `main`**. La versión completa y probada vive en la rama `ifc-ifcopenshell` (PR #9 cerrado sin fusionar). Se
-  retomará cuando lo pida el otro programa.
-- **Escritor IFC propio (sin `ifcopenshell`):** `ifcopenshell` añade del orden de 100 MB al `.exe` (DLL de OpenCASCADE,
-  esquemas IFC2X3/IFC4/IFC4X3, geometría) y la ruta solo usa una parte mínima: crear unas 50 entidades IFC4, los
-  `GlobalId` y consultar enumeraciones del esquema. Un escritor propio (serializador STEP + tablas de las entidades
-  usadas) pesaría del orden de decenas de KB, quitaría la dependencia LGPL y el 503 por falta de librería.
-  - Riesgo principal: producir un IFC que Revit rechace por un atributo mal ordenado o una enumeración errónea.
-  - Mitigación: conservar `ifcopenshell` solo como dependencia de desarrollo (CI y pruebas: `validate`, volúmenes con
-    `geom`) y comparar la salida del escritor propio con la de la librería.
-  - Esfuerzo estimado: unos días (51 entidades, pruebas de equivalencia).
-  - **Plan detallado (guardado para ejecutarlo más adelante): [`docs/PLAN_ESCRITOR_IFC.md`](PLAN_ESCRITOR_IFC.md).**
-- **Si se retoma con `ifcopenshell` empaquetada:** medir el peso real del `.exe` con `--collect-all`, valorar recoger
-  solo IFC4, y revisar la licencia LGPL frente al «Todos los derechos reservados» del README.
+- **Estado:** la ruta `POST /v1/sap/actions/cad/ifc` (IFC4 desde un modelo `estructura-v1`) está en `main` con un **escritor
+  IFC propio sin `ifcopenshell`** (`bridge/ifc_step.py`). La versión anterior con `ifcopenshell` queda en la rama
+  `ifc-ifcopenshell` (PR #9 cerrado sin fusionar) solo como referencia.
+- **Escritor IFC propio: HECHO (F0-F3)**, ver [`docs/PLAN_ESCRITOR_IFC.md`](PLAN_ESCRITOR_IFC.md). Falta la fase F4: compilar en
+  Windows, **medir el peso real del `.exe`** frente a la rama `ifc-ifcopenshell`, comprobar `cad/status` → `ifc: true` y abrir los
+  IFC de muestra en **Revit** (la versión con `ifcopenshell` tampoco se había abierto nunca en Revit).
+- **Riesgo residual del escritor propio:** que Revit rechace algún atributo o carácter (`\X4\` por encima de U+FFFF es un
+  supuesto). Mitigado con equivalencia entidad por entidad con `ifcopenshell` y validación EXPRESS en CI.
 
 ## Seguridad y robustez
 - **Límite de tamaño del cuerpo** de las peticiones (las rutas no lo limitan).

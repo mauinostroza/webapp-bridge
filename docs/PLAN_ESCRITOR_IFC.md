@@ -1,8 +1,20 @@
 # Plan: escritor IFC4 propio (sustituir `ifcopenshell`)
 
-> **Estado: pendiente, sin ejecutar.** Se guarda para retomarlo en unos días. Plan generado por un agente planificador
-> (modelo Opus) leyendo la rama `ifc-ifcopenshell` (commit `c9c00ac`); **no se ha comprobado nada de lo que dice**.
-> Los supuestos están marcados. `main` **no** contiene el IFC (ni `cad_ifc.py`, ni la ruta `cad/ifc`).
+> **Estado: fases F0 a F3 EJECUTADAS (código, pruebas y documentación); F4 (Windows y Revit) PENDIENTE.**
+> Plan generado por un agente planificador (modelo Opus) leyendo la rama `ifc-ifcopenshell` (commit `c9c00ac`); el plan en sí
+> no se comprobó, pero lo ejecutado sí se ha verificado (ver «Registro de ejecución» al final). Los supuestos originales siguen marcados.
+
+> **Registro de ejecución (2026-11-17).**
+> - **F0, decisiones adoptadas** (las recomendadas del plan): 1) se fusiona directamente la versión pura (la rama `ifc-ifcopenshell`
+>   queda como referencia); 2) `cad/status` conserva `ifc`, siempre `true`; 3) la prueba en Revit/Windows la hace el dueño y Tekla
+>   queda fuera; 4) **no** se suben IFC a servicios externos; 5) archivos de referencia por **huella SHA-256**
+>   (`tests/fixtures/ifc_sha256.json`), no `.ifc` en el repositorio.
+> - **F1/F2/F3 hechas:** `bridge/ifc_step.py` (serializador), `bridge/ifc4_esquema.py` (generado, 32 KB),
+>   `scripts/generar_esquema_ifc4.py`, `cad_ifc.py`/`cad_drwr.py` adaptados, pruebas de equivalencia con `ifcopenshell`
+>   (7 fixtures + 3 variantes: 0 diferencias), EXPRESS en verde, volúmenes en verde, `GlobalId` idénticos, 5000 instancias en ≈1 s y
+>   ≈37 MB de pico. `ifcopenshell` solo en `backend/requirements-dev.txt`; fuera de `build_bridge.ps1`.
+> - **Pendiente (F4):** compilar en Windows, medir el peso real del `.exe` frente a la rama `ifc-ifcopenshell`, comprobar
+>   `cad/status` → `ifc: true` y abrir los IFC de muestra en Revit (sección 4.7).
 >
 > Referencias de código: las rutas y números de línea de este documento son los de la rama `ifc-ifcopenshell`
 > (`bridge/cad_ifc.py`, `bridge/cad_drwr.py`, `docs/CAD_IFC.md`, `tests/test_bridge_cad_ifc.py`,
@@ -177,10 +189,17 @@ class ArchivoStep:
 - **GlobalId:** se porta el algoritmo de `ifcopenshell.guid.compress` (dominio público); se comprueba contra la librería en CI.
   ```python
   _C = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_$"
-  def _b64(v, n): return "".join(_C[(v // 64**i) % 64] for i in range(n))[::-1]
+
+
+  def _b64(v, n):
+      return "".join(_C[(v // 64**i) % 64] for i in range(n))[::-1]
+
+
   def comprimir_guid(h: str) -> str:
-      b = bytes.fromhex(h)            # 16 bytes
-      return _b64(b[0], 2) + "".join(_b64((b[i] << 16) | (b[i+1] << 8) | b[i+2], 4) for i in range(1, 16, 3))
+      b = bytes.fromhex(h)  # 16 bytes
+      return _b64(b[0], 2) + "".join(
+          _b64((b[i] << 16) | (b[i + 1] << 8) | b[i + 2], 4) for i in range(1, 16, 3)
+      )
   ```
   Determinismo igual que ahora: `uuid5(_NS, "/".join(partes))` (l. 51 y 535-539); los GlobalId serán **idénticos** a los de
   la versión con ifcopenshell.
