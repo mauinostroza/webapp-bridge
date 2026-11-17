@@ -352,6 +352,7 @@ def test_status_con_cad(cliente):
         "version": "25.0",
         "documento": "Dibujo1.dwg",
         "detalle": "ZWCAD | versión 25.0 | documento: Dibujo1.dwg",
+        "ifc": True,
     }
     assert sorted(r.json()) == claves_contrato("/status")
 

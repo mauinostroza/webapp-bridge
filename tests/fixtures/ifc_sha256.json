@@ -1,0 +1,30 @@
+{
+  "fundacion": {
+    "bytes": 8745,
+    "sha256": "c529ecbfb8fcb57668ac7398f38930eb16162ac713c84e40f9d15989ef7d16da"
+  },
+  "pedestal": {
+    "bytes": 45860,
+    "sha256": "fc6a5327537afd2d8262baa2e2f5699d85db97fe15acab336b2a185d71a91aff"
+  },
+  "perfil_hss": {
+    "bytes": 4578,
+    "sha256": "fe00d8d1588856c11da7c6dff9dc45bcdf8b890df12176335c3e4c5ae1ae155e"
+  },
+  "perfil_refuerzos": {
+    "bytes": 17804,
+    "sha256": "b21a315f25f81a186f1826da226c127329a2d81688301e5fa5a0aedab9bbb11c"
+  },
+  "perno_l": {
+    "bytes": 7912,
+    "sha256": "043a60e05c6fcc98903a961e0ecd0a6da35866f6538285e66cbce4e1f01270cf"
+  },
+  "perno_pg": {
+    "bytes": 12369,
+    "sha256": "447301c39121cbe11bab6afa0cfd1586b0bdbb8668744674eb9bbe5151dc3b5e"
+  },
+  "placa_base": {
+    "bytes": 30836,
+    "sha256": "c87cd68f5829adfc6c9e200ba874c3f434b55044a9bd349106719be6a016881b"
+  }
+}

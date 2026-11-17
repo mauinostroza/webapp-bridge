@@ -244,7 +244,7 @@
       "keys": ["available", "reason", "tableKey", "notes", "frames"]
     },
     "POST /v1/sap/actions/cad/status": {
-      "keys": ["conectado", "programa", "version", "documento", "detalle"]
+      "keys": ["conectado", "programa", "version", "documento", "detalle", "ifc"]
     },
     "POST /v1/sap/actions/cad/pick": {
       "keys": ["x", "y"]
@@ -711,6 +711,9 @@
         "truncated",
         "warnings"
       ]
+    },
+    "POST /v1/sap/actions/cad/ifc": {
+      "keys": ["nombre", "tamano", "contenido_base64"]
     }
   },
   "legado": {

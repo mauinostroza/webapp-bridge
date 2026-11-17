@@ -1,7 +1,7 @@
 {
   "routes": {
     "POST /v1/sap/actions/cad/status": {
-      "keys": ["conectado", "programa", "version", "documento", "detalle"]
+      "keys": ["conectado", "programa", "version", "documento", "detalle", "ifc"]
     },
     "POST /v1/sap/actions/cad/pick": {
       "keys": ["x", "y"]
@@ -37,6 +37,9 @@
     },
     "POST /v1/sap/actions/cad/sap/foundation/cancel": {
       "keys": ["cancelado"]
+    },
+    "POST /v1/sap/actions/cad/ifc": {
+      "keys": ["nombre", "tamano", "contenido_base64"]
     }
   }
 }

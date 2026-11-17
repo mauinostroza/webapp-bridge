@@ -1,0 +1,795 @@
+{
+ "formato": "estructura-v1",
+ "unidades": "mm",
+ "id": "placa_base",
+ "nombre": "Placa base W250X25 440x590x12",
+ "tipo": "base_columna",
+ "modulo": "placa_base",
+ "origen": [
+  0.0,
+  0.0,
+  0.0
+ ],
+ "angulo": 0.0,
+ "vinculo": {},
+ "avisos": [
+  "Hormigón y grout cuadrados/rectangulares supuestos; columna mostrada solo 436.9 mm."
+ ],
+ "resumen": {
+  "peso_acero_kg": 33.82
+ },
+ "elementos": [
+  {
+   "id": "hormigon",
+   "clase": "Pedestal",
+   "nombre": "Hormigón de apoyo",
+   "marca": "",
+   "material": {
+    "nombre": "Hormigón",
+    "tipo": "hormigon"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      -320.0,
+      -320.0
+     ],
+     [
+      320.0,
+      -320.0
+     ],
+     [
+      320.0,
+      320.0
+     ],
+     [
+      -320.0,
+      320.0
+     ]
+    ],
+    "h": 500.0,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      -500.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    }
+   },
+   "cantidad": 1,
+   "meta": {
+    "supuesto": "bloque cuadrado de lado w_conc; altura = max(350, Le+50)"
+   }
+  },
+  {
+   "id": "grout",
+   "clase": "Grout",
+   "nombre": "Grout",
+   "marca": "",
+   "material": {
+    "nombre": "Grout 0 MPa",
+    "tipo": "hormigon"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      -210.0,
+      -285.0
+     ],
+     [
+      210.0,
+      -285.0
+     ],
+     [
+      210.0,
+      285.0
+     ],
+     [
+      -210.0,
+      285.0
+     ]
+    ],
+    "h": 20.0,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    }
+   },
+   "cantidad": 1,
+   "padre": "hormigon"
+  },
+  {
+   "id": "placa",
+   "clase": "PlacaBase",
+   "nombre": "Placa base e=12",
+   "marca": "PB1",
+   "material": {
+    "nombre": "Placa No especificado",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      -220.0,
+      -295.0
+     ],
+     [
+      220.0,
+      -295.0
+     ],
+     [
+      220.0,
+      295.0
+     ],
+     [
+      -220.0,
+      295.0
+     ]
+    ],
+    "h": 12.0,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      20.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    },
+    "agujeros": [
+     {
+      "c": [
+       -172.5,
+       -247.5
+      ],
+      "d": 25.0
+     },
+     {
+      "c": [
+       -172.5,
+       247.5
+      ],
+      "d": 25.0
+     },
+     {
+      "c": [
+       172.5,
+       -247.5
+      ],
+      "d": 25.0
+     },
+     {
+      "c": [
+       172.5,
+       247.5
+      ],
+      "d": 25.0
+     }
+    ]
+   },
+   "cantidad": 1,
+   "peso": 24.27
+  },
+  {
+   "id": "columna",
+   "clase": "Perfil",
+   "nombre": "Columna W250X25",
+   "marca": "",
+   "material": {
+    "nombre": "Placa No especificado",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      -50.5,
+      128.5
+     ],
+     [
+      50.5,
+      128.5
+     ],
+     [
+      50.5,
+      120.1
+     ],
+     [
+      2.9,
+      120.1
+     ],
+     [
+      2.9,
+      -120.1
+     ],
+     [
+      50.5,
+      -120.1
+     ],
+     [
+      50.5,
+      -128.5
+     ],
+     [
+      -50.5,
+      -128.5
+     ],
+     [
+      -50.5,
+      -120.1
+     ],
+     [
+      -2.9,
+      -120.1
+     ],
+     [
+      -2.9,
+      120.1
+     ],
+     [
+      -50.5,
+      120.1
+     ]
+    ],
+    "h": 436.9,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      32.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    }
+   },
+   "cantidad": 1,
+   "padre": "placa",
+   "meta": {
+    "seccion": "W250X25",
+    "tramo_mostrado": "1.7·d (rotura convencional)"
+   }
+  },
+  {
+   "id": "cartela1",
+   "clase": "Rigidizador",
+   "nombre": "Cartela e=12",
+   "marca": "C1",
+   "material": {
+    "nombre": "Placa No especificado",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      -50.5,
+      0.0
+     ],
+     [
+      -50.5,
+      150.0
+     ],
+     [
+      -130.5,
+      0.0
+     ]
+    ],
+    "h": 12.0,
+    "base": {
+     "o": [
+      0.0,
+      -118.3,
+      32.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      0,
+      1
+     ]
+    }
+   },
+   "cantidad": 1,
+   "padre": "placa",
+   "peso": 0.57
+  },
+  {
+   "id": "cartela2",
+   "clase": "Rigidizador",
+   "nombre": "Cartela e=12",
+   "marca": "C1",
+   "material": {
+    "nombre": "Placa No especificado",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      -50.5,
+      0.0
+     ],
+     [
+      -50.5,
+      150.0
+     ],
+     [
+      -130.5,
+      0.0
+     ]
+    ],
+    "h": 12.0,
+    "base": {
+     "o": [
+      0.0,
+      130.3,
+      32.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      0,
+      1
+     ]
+    }
+   },
+   "cantidad": 1,
+   "padre": "placa",
+   "peso": 0.57
+  },
+  {
+   "id": "cartela3",
+   "clase": "Rigidizador",
+   "nombre": "Cartela e=12",
+   "marca": "C1",
+   "material": {
+    "nombre": "Placa No especificado",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      50.5,
+      0.0
+     ],
+     [
+      50.5,
+      150.0
+     ],
+     [
+      130.5,
+      0.0
+     ]
+    ],
+    "h": 12.0,
+    "base": {
+     "o": [
+      0.0,
+      -118.3,
+      32.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      0,
+      1
+     ]
+    }
+   },
+   "cantidad": 1,
+   "padre": "placa",
+   "peso": 0.57
+  },
+  {
+   "id": "cartela4",
+   "clase": "Rigidizador",
+   "nombre": "Cartela e=12",
+   "marca": "C1",
+   "material": {
+    "nombre": "Placa No especificado",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      50.5,
+      0.0
+     ],
+     [
+      50.5,
+      150.0
+     ],
+     [
+      130.5,
+      0.0
+     ]
+    ],
+    "h": 12.0,
+    "base": {
+     "o": [
+      0.0,
+      130.3,
+      32.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      0,
+      1
+     ]
+    }
+   },
+   "cantidad": 1,
+   "padre": "placa",
+   "peso": 0.57
+  },
+  {
+   "id": "perno_a",
+   "clase": "PernoAnclaje",
+   "nombre": "Perno Ø19",
+   "marca": "P1",
+   "material": {
+    "nombre": "Perno No especificado",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "barrido",
+    "d": 19.0,
+    "eje": [
+     [
+      "L",
+      [
+       322.5,
+       -247.5,
+       -450.0
+      ],
+      [
+       229.5,
+       -247.5,
+       -450.0
+      ]
+     ],
+     [
+      "A",
+      [
+       229.5,
+       -247.5,
+       -450.0
+      ],
+      [
+       189.195,
+       -247.5,
+       -433.305
+      ],
+      [
+       172.5,
+       -247.5,
+       -393.0
+      ]
+     ],
+     [
+      "L",
+      [
+       172.5,
+       -247.5,
+       -393.0
+      ],
+      [
+       172.5,
+       -247.5,
+       132.0
+      ]
+     ]
+    ],
+    "instancias": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      495.0,
+      0.0
+     ]
+    ]
+   },
+   "cantidad": 2,
+   "padre": "hormigon",
+   "diametro": 19.0,
+   "longitud": 707.535,
+   "peso": 3.15
+  },
+  {
+   "id": "perno_b",
+   "clase": "PernoAnclaje",
+   "nombre": "Perno Ø19",
+   "marca": "P1",
+   "material": {
+    "nombre": "Perno No especificado",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "barrido",
+    "d": 19.0,
+    "eje": [
+     [
+      "L",
+      [
+       -322.5,
+       -247.5,
+       -450.0
+      ],
+      [
+       -229.5,
+       -247.5,
+       -450.0
+      ]
+     ],
+     [
+      "A",
+      [
+       -229.5,
+       -247.5,
+       -450.0
+      ],
+      [
+       -189.195,
+       -247.5,
+       -433.305
+      ],
+      [
+       -172.5,
+       -247.5,
+       -393.0
+      ]
+     ],
+     [
+      "L",
+      [
+       -172.5,
+       -247.5,
+       -393.0
+      ],
+      [
+       -172.5,
+       -247.5,
+       132.0
+      ]
+     ]
+    ],
+    "instancias": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      495.0,
+      0.0
+     ]
+    ]
+   },
+   "cantidad": 2,
+   "padre": "hormigon",
+   "diametro": 19.0,
+   "longitud": 707.535,
+   "peso": 3.15
+  },
+  {
+   "id": "arandela",
+   "clase": "Arandela",
+   "nombre": "Arandela Ø19",
+   "marca": "",
+   "material": {
+    "nombre": "Perno No especificado",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      -28.5,
+      -28.5
+     ],
+     [
+      28.5,
+      -28.5
+     ],
+     [
+      28.5,
+      28.5
+     ],
+     [
+      -28.5,
+      28.5
+     ]
+    ],
+    "h": 5.0,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      32.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    },
+    "instancias": [
+     [
+      -172.5,
+      -247.5,
+      0.0
+     ],
+     [
+      -172.5,
+      247.5,
+      0.0
+     ],
+     [
+      172.5,
+      -247.5,
+      0.0
+     ],
+     [
+      172.5,
+      247.5,
+      0.0
+     ]
+    ]
+   },
+   "cantidad": 4,
+   "peso": 0.51
+  },
+  {
+   "id": "tuerca",
+   "clase": "Tuerca",
+   "nombre": "Tuerca M19",
+   "marca": "",
+   "material": {
+    "nombre": "Perno No especificado",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      19.745,
+      0.0
+     ],
+     [
+      9.873,
+      17.1
+     ],
+     [
+      -9.873,
+      17.1
+     ],
+     [
+      -19.745,
+      0.0
+     ],
+     [
+      -9.873,
+      -17.1
+     ],
+     [
+      9.873,
+      -17.1
+     ]
+    ],
+    "h": 15.2,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      37.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    },
+    "instancias": [
+     [
+      -172.5,
+      -247.5,
+      0.0
+     ],
+     [
+      -172.5,
+      247.5,
+      0.0
+     ],
+     [
+      172.5,
+      -247.5,
+      0.0
+     ],
+     [
+      172.5,
+      247.5,
+      0.0
+     ]
+    ]
+   },
+   "cantidad": 4,
+   "peso": 0.48
+  }
+ ]
+}

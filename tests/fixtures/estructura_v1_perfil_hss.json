@@ -1,0 +1,100 @@
+{
+ "formato": "estructura-v1",
+ "unidades": "mm",
+ "id": "perfil",
+ "nombre": "Caja HSS W250X25",
+ "tipo": "perfil",
+ "modulo": "perfil",
+ "origen": [
+  0.0,
+  0.0,
+  0.0
+ ],
+ "angulo": 0.0,
+ "vinculo": {},
+ "avisos": [
+  "El módulo solo define la sección; el tramo 3D es ilustrativo."
+ ],
+ "resumen": {
+  "peso_acero_kg": 0.0
+ },
+ "elementos": [
+  {
+   "id": "perfil",
+   "clase": "Perfil",
+   "nombre": "Caja HSS W250X25",
+   "marca": "",
+   "material": {
+    "nombre": "Acero estructural",
+    "tipo": "acero"
+   },
+   "geom": {
+    "tipo": "extrusion",
+    "contorno": [
+     [
+      -50.5,
+      -128.5
+     ],
+     [
+      50.5,
+      -128.5
+     ],
+     [
+      50.5,
+      128.5
+     ],
+     [
+      -50.5,
+      128.5
+     ]
+    ],
+    "h": 1028.0,
+    "base": {
+     "o": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "x": [
+      1,
+      0,
+      0
+     ],
+     "y": [
+      0,
+      1,
+      0
+     ]
+    },
+    "huecos": [
+     [
+      [
+       -44.7,
+       -122.7
+      ],
+      [
+       44.7,
+       -122.7
+      ],
+      [
+       44.7,
+       122.7
+      ],
+      [
+       -44.7,
+       122.7
+      ]
+     ]
+    ]
+   },
+   "cantidad": 1,
+   "meta": {
+    "tramo_ilustrativo": "4·max(d, bf)",
+    "seccion": "W250X25",
+    "tipo_perfil": "Caja HSS",
+    "area_mm2": 4018.24,
+    "peso_lineal_kg_m": 31.543
+   }
+  }
+ ]
+}

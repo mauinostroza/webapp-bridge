@@ -138,6 +138,11 @@ RUTAS_RETIRADAS = {
 }
 
 
+# Claves que una ruta ya existente gana de forma aditiva (el contrato previo sigue siendo un subconjunto, en el
+# mismo orden): ``cad/status`` añade ``ifc`` (docs/CAD_IFC.md).
+CLAVES_AMPLIADAS = {"POST /v1/sap/actions/cad/status": ["ifc"]}
+
+
 def test_previous_contract_keys_are_intact(contracts):
     """Toda ruta que ya existía en ``origin/main`` conserva exactamente su
     contrato (sólo se permiten rutas nuevas)."""
@@ -155,5 +160,12 @@ def test_previous_contract_keys_are_intact(contracts):
     previous = {r: s for r, s in json.loads(raw)["routes"].items() if r not in RUTAS_RETIRADAS}
     for route, spec in previous.items():
         assert route in contracts, f"ruta previa eliminada: {route}"
+        if route in CLAVES_AMPLIADAS:
+            nuevas = [
+                k for k in CLAVES_AMPLIADAS[route] if k not in spec["keys"]
+            ]  # ya fusionadas: no se repiten
+            ampliado = {**spec, "keys": [*spec["keys"], *nuevas]}
+            assert contracts[route] == ampliado, f"contrato previo modificado: {route}"
+            continue
         assert contracts[route] == spec, f"contrato previo modificado: {route}"
     assert list(contracts)[: len(previous) - 2] == list(previous)[: len(previous) - 2]
