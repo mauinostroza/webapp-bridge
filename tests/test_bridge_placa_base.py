@@ -480,8 +480,14 @@ def test_reacciones_marca_la_seleccion_solo_si_se_envia(orden):
     modelo, sap = _sap(orden)
     reacciones(sap, ["1"])
     assert modelo.llamadas == []
+    antes = (set(modelo.salida_casos), set(modelo.salida_combos))
     reacciones(sap, ["1"], combinaciones=["COMB1", "COMB2"])
-    assert modelo.salida_casos == set() and modelo.salida_combos == {"COMB1", "COMB2"}
+    assert ("combo", "COMB1") in modelo.llamadas and (
+        "combo",
+        "COMB2",
+    ) in modelo.llamadas  # se marcaron para leer
+    # y al terminar se devolvió la selección de salida que tenía el usuario
+    assert (modelo.salida_casos, modelo.salida_combos) == antes
 
 
 def test_reacciones_sin_resultados_es_error_y_restaura_unidades(orden):

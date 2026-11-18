@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from bridge.actions import install_routes
 from bridge.esbelteces import (
     DesignCodeError,
+    ModeloBloqueadoError,
     apply_k_factors,
     apply_section,
     extract_frame_data,
@@ -223,6 +224,10 @@ class FakeModel:
         self.GroupDef = _GroupDef(groups or {})
         self.DesignSteel = _DesignSteel(design_code)
         self.locked_calls: list[bool] = []
+        self.locked = False  # modelo con resultados de análisis (bloqueado)
+
+    def GetModelIsLocked(self):
+        return self.locked
 
     def GetPresentUnits(self):
         return self.units
@@ -234,6 +239,7 @@ class FakeModel:
 
     def SetModelIsLocked(self, value):
         self.locked_calls.append(value)
+        self.locked = bool(value)
         return 0
 
 
@@ -448,9 +454,29 @@ def test_apply_section_assigns_and_reextracts():
     model = _standard_model()
     result = apply_section(model, "F1", "CH1")
     assert model.FrameObj.set_section_calls == [("F1", "CH1")]
-    assert model.locked_calls == [False]
+    assert model.locked_calls == []  # modelo sin resultados: no hay nada que desbloquear
     assert result["member"]["section_name"] == "CH1"
     assert result["member"]["prop_type_name"] == "Channel"
+    assert set(result) == {"member"}
+
+
+def test_apply_section_con_modelo_bloqueado_no_escribe_ni_desbloquea_sin_permiso():
+    """Desbloquear BORRA los resultados del análisis: no se hace sin preguntar (antes se hacía siempre, en silencio)."""
+    model = _standard_model()
+    model.locked = True
+    with pytest.raises(ModeloBloqueadoError) as excinfo:
+        apply_section(model, "F1", "CH1")
+    assert excinfo.value.detail["code"] == "modelo_bloqueado" and "BORRA" in excinfo.value.detail["message"]
+    assert model.locked_calls == [] and model.FrameObj.set_section_calls == [] and model.locked is True
+
+
+def test_apply_section_con_desbloquear_true_desbloquea_y_lo_avisa():
+    model = _standard_model()
+    model.locked = True
+    result = apply_section(model, "F1", "CH1", desbloquear=True)
+    assert model.locked_calls == [False] and model.FrameObj.set_section_calls == [("F1", "CH1")]
+    assert result["modelo_desbloqueado"] is True and result["resultados_invalidados"] is True
+    assert "BORRÓ los resultados" in result["warnings"][0]
 
 
 def test_apply_section_raises_literal_message_when_reextract_fails():
@@ -597,6 +623,30 @@ def test_route_section_apply_confirmed_assigns():
     )
     assert response.status_code == 200
     assert response.json()["member"]["section_name"] == "CH1"
+
+
+def test_route_section_apply_con_modelo_bloqueado_responde_409_y_no_escribe():
+    model = _standard_model()
+    model.locked = True
+    response = _client(model).post(
+        "/v1/sap/actions/esbelteces/section/apply",
+        json={"frame": "F1", "section": "CH1", "confirmed": True},
+    )
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "modelo_bloqueado"
+    assert model.FrameObj.set_section_calls == []
+
+
+def test_route_section_apply_con_desbloquear_true_avisa_de_los_resultados_invalidados():
+    model = _standard_model()
+    model.locked = True
+    response = _client(model).post(
+        "/v1/sap/actions/esbelteces/section/apply",
+        json={"frame": "F1", "section": "CH1", "confirmed": True, "desbloquear": True},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["modelo_desbloqueado"] is True and body["warnings"]
 
 
 def test_route_highlight():

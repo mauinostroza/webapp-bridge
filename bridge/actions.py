@@ -15,6 +15,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
+from bridge.seleccion_salida import con_avisos, preserve_output_selection
+
 logger = logging.getLogger(__name__)
 
 _NAME = re.compile(r"^[^\\/:*?\"<>|\x00-\x1f]{1,128}$")
@@ -1776,10 +1778,12 @@ def install_routes(app: Any, session: Any, com_error: type[Exception]) -> None:
         ``shell.resultados`` al endpoint de exportación."""
 
         def run(model: Any) -> dict[str, Any]:
-            _select_case_for_output(model, body.combinacion)
-            elementos, joints, elementos_por_area = shell_geometry(model, body.shells)
-            resultados = shell_soil_pressure(model, elementos, elementos_por_area) if elementos else {}
-            return {"elementos": elementos, "joints": joints, "resultados": resultados}
+            avisos: list[str] = []
+            with preserve_output_selection(model, avisos):  # la selección del usuario se devuelve al terminar
+                _select_case_for_output(model, body.combinacion)
+                elementos, joints, elementos_por_area = shell_geometry(model, body.shells)
+                resultados = shell_soil_pressure(model, elementos, elementos_por_area) if elementos else {}
+            return con_avisos({"elementos": elementos, "joints": joints, "resultados": resultados}, avisos)
 
         return call(run)
 

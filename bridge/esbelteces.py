@@ -20,7 +20,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
-from bridge.actions import _get_name_list, _ret, _valid_name, group_members
+from bridge.actions import _get_name_list, _ret, _valid_name, group_members, model_is_locked
 
 N_MM_C = 9  # eUnits.N_mm_C: longitudes en mm, esfuerzos en MPa.
 
@@ -89,6 +89,25 @@ class DesignCodeError(RuntimeError):
         )
         super().__init__(message)
         self.detail = {"code": "design_code", "message": message}
+
+
+ADVERTENCIA_DESBLOQUEO = (
+    "El modelo estaba bloqueado: se desbloqueó antes de asignar la sección, lo que BORRÓ los resultados del análisis. "
+    "Vuelva a analizar el modelo."
+)
+
+
+class ModeloBloqueadoError(RuntimeError):
+    """El modelo tiene resultados de análisis y escribir exigiría desbloquearlo (lo que los BORRA)."""
+
+    def __init__(self) -> None:
+        message = (
+            "El modelo está bloqueado (tiene resultados de análisis). Asignar la sección exige desbloquearlo, lo que "
+            "BORRA los resultados del análisis. Con desbloquear=true se desbloquea antes de escribir. "
+            "No se escribió nada."
+        )
+        super().__init__(message)
+        self.detail = {"code": "modelo_bloqueado", "message": message}
 
 
 @contextmanager
@@ -418,12 +437,23 @@ def section_names(model: Any) -> list[str]:
     return _get_name_list(model.PropFrame, "PropFrame.GetNameList")
 
 
-def apply_section(model: Any, frame_name: str, section_name: str) -> dict[str, Any]:
-    """Asigna una sección y re-extrae. Port de ``SetSectionWorker``/``set_frame_section``."""
-    try:
-        model.SetModelIsLocked(False)
-    except Exception:
-        pass  # el modelo puede no estar bloqueado; no es un error fatal
+def apply_section(
+    model: Any, frame_name: str, section_name: str, desbloquear: bool = False
+) -> dict[str, Any]:
+    """Asigna una sección y re-extrae. Port de ``SetSectionWorker``/``set_frame_section``.
+
+    Con el modelo bloqueado (analizado) NO escribe nada salvo que se pida ``desbloquear``: desbloquear borra los
+    resultados del análisis y no se hace sin preguntar (antes se desbloqueaba siempre, en silencio).
+    """
+    desbloqueado = False
+    if model_is_locked(model):
+        if not desbloquear:
+            raise ModeloBloqueadoError()
+        try:
+            _ret(model.SetModelIsLocked(False), "SetModelIsLocked(False)")
+        except Exception as exc:
+            raise RuntimeError(f"No se pudo desbloquear el modelo: {exc}. No se escribió nada.") from exc
+        desbloqueado = True
 
     ret = model.FrameObj.SetSection(frame_name, section_name)
     _ret(ret, f"FrameObj.SetSection({frame_name!r}, {section_name!r})")
@@ -431,7 +461,12 @@ def apply_section(model: Any, frame_name: str, section_name: str) -> dict[str, A
     data = extract_frame_data(model, frame_name)
     if data is None:
         raise RuntimeError(f"No se pudo re-extraer datos de {frame_name} tras el cambio de sección.")
-    return {"member": asdict(data)}
+    resultado: dict[str, Any] = {"member": asdict(data)}
+    if desbloqueado:  # claves opcionales: solo si se desbloqueó
+        resultado["modelo_desbloqueado"] = True
+        resultado["resultados_invalidados"] = True
+        resultado["warnings"] = [ADVERTENCIA_DESBLOQUEO]
+    return resultado
 
 
 def highlight_frames(model: Any, frame_names: list[str]) -> int:
@@ -515,6 +550,8 @@ class SectionApplyBody(BaseModel):
     frame: str
     section: str
     confirmed: bool = False
+    # Con el modelo bloqueado (con resultados), desbloquearlo BORRA los resultados: solo si se pide expresamente.
+    desbloquear: bool = False
 
     @field_validator("frame")
     @classmethod
@@ -600,7 +637,7 @@ def install_routes(app: Any, call: Callable[[Callable[[Any], Any]], Any]) -> Non
     def esbelteces_section_apply(body: SectionApplyBody):
         if not body.confirmed:
             raise HTTPException(422, "confirmed must be true to apply a section assignment")
-        return call(lambda model: apply_section(model, body.frame, body.section))
+        return call(lambda model: apply_section(model, body.frame, body.section, body.desbloquear))
 
     @app.post(f"{prefix}/highlight")
     def esbelteces_highlight(body: HighlightBody):

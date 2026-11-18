@@ -84,7 +84,7 @@ Puerto fiel de `esb_app/sap/sap_client.py` (proyecto de escritorio original). Pr
 | `GET /v1/sap/actions/esbelteces/groups` | `GroupDef.GetNameList`: todos los grupos definidos, sin filtrar por si tienen miembros. |
 | `POST /v1/sap/actions/esbelteces/import-groups` | `{ "map": { "<categoría>": "<grupo SAP2000>", ... } }`. Para cada entrada con grupo no vacío, en el orden del mapa: `GroupDef.GetAssignments` (tipo 2) + extracción por frame, con `group_category` seteado a la categoría. Un frame que ya apareció en una categoría anterior se omite (primera categoría gana), igual que `ImportByGroupWorker`. Solo lee: no requiere `confirmed`. |
 | `GET /v1/sap/actions/esbelteces/sections` | `PropFrame.GetNameList`: todas las secciones de frame del modelo (para el combo de reemplazo). |
-| `POST /v1/sap/actions/esbelteces/section/apply` | `{ "frame": "F1", "section": "W310", "confirmed": true }`. `SetModelIsLocked(False)` (best-effort) + `FrameObj.SetSection` + re-extracción. Si la re-extracción falla, error `"No se pudo re-extraer datos de {frame} tras el cambio de sección."`. Devuelve `{ "member": <FrameSectionData> }`. |
+| `POST /v1/sap/actions/esbelteces/section/apply` | `{ "frame": "F1", "section": "W310", "confirmed": true, "desbloquear": false }`. Si el modelo está **bloqueado** (con resultados de análisis), responde `409 modelo_bloqueado` sin escribir nada: cambiar la sección obliga a desbloquear y eso **borra los resultados**. Con `desbloquear: true` (la web debe preguntarlo antes al usuario) hace `SetModelIsLocked(False)` y devuelve además `modelo_desbloqueado`, `resultados_invalidados` y `warnings`. Después `FrameObj.SetSection` + re-extracción. Si la re-extracción falla, error `"No se pudo re-extraer datos de {frame} tras el cambio de sección."`. Devuelve `{ "member": <FrameSectionData> }`. |
 | `POST /v1/sap/actions/esbelteces/highlight` | `{ "frames": ["F1", "F2"] }`. `SelectObj.ClearSelection()` + `FrameObj.SetSelected(name, True)` por cada frame. Devuelve `{ "count": n }`. Solo muta la selección visual de SAP2000, no requiere `confirmed`. |
 | `POST /v1/sap/actions/esbelteces/k-factors/apply` | `{ "items": [{ "frame": "F1", "kx": 1.0, "ky": 1.0 }, ...], "confirmed": true }`. Escribe Kx/Ky como Design Overwrite AISC 360-16 (`DesignSteel.AISC360_16.SetOverwrite`, item 23 = K2 Major, item 24 = K2 Minor); un `kx`/`ky` de `0` no se escribe para ese eje. |
 
@@ -382,6 +382,16 @@ Todas son `POST` bajo `/v1/sap/actions/cad/`. Las del CAD usan un actor COM prop
 | `cad/sap/foundation/cancel` | Cancelación cooperativa (la siguiente operación COM la detecta). |
 
 Reglas heredadas del puente: nunca rutas de archivo en el payload; mutaciones con `confirmed: true`; errores de validación 422 en español; errores COM 409 con el texto real. Las firmas COM no verificadas contra una instancia real quedan marcadas en `SAP2000_ACCEPTANCE.md`.
+
+## Selección de salida (`Results.Setup`)
+
+Toda lectura que marca casos o combinaciones para salida (`DeselectAllCasesAndCombosForOutput` +
+`Set*SelectedForOutput`) guarda antes la selección del usuario y se la devuelve al terminar, aunque la lectura
+falle (`bridge/seleccion_salida.py`, `preserve_output_selection`). Es de mejor esfuerzo: si no se puede leer o restaurar la
+selección, la respuesta lleva `warnings` (clave opcional: solo aparece si hay avisos; en equilibrio, `avisos`).
+Cubre acero (`fuerzas`), hormigón, equilibrio, espectro, diagrama, placa base (`reacciones`, solo si manda casos),
+fundaciones (`shell-results`, cortes, snapshot), diagrama de shells y los lectores del visor. No lo usan las acciones
+cuyo fin es fijar la selección (`placa-base/seleccionar-cargas`). No se restaura la selección de los cortes de sección.
 
 ## Resultados en bloque del Viewer (`results/reactions`, `results/frames`, `results/envelope`)
 

@@ -13,6 +13,10 @@ Ideas detectadas en las revisiones del puente. **No están hechas**; se dejan aq
   supuesto). Mitigado con equivalencia entidad por entidad con `ifcopenshell` y validación EXPRESS en CI.
 
 ## Seguridad y robustez
+- **`combinaciones/send` sobrescribe** una combinación del mismo nombre sin preguntar (por diseño): valorar bloquearlo
+  salvo confirmación explícita, igual que `esbelteces/section/apply` con el modelo bloqueado.
+- **Selección de los cortes de sección** (`section_cut`): no se restaura tras leerlos.
+- **`hormigon.get_frame_forces`:** `n = int(n)` sin validar (un valor no numérico da un error genérico).
 - **Límite de tamaño del cuerpo** de las peticiones (las rutas no lo limitan).
 - **Registro de auditoría de las escrituras** en SAP2000 (`apply`, `send`, `enviar`, `revertir`, `delete`…). El visor ya
   tiene uno (`bridge/viewer/safety/audit_log.py`); no se aplica al resto del puente.

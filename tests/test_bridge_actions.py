@@ -1135,6 +1135,12 @@ def test_snapshot_scoping_sets_output_selection_and_filters_joints_and_shells(mo
         def __init__(self):
             self.calls = []
 
+        def GetCaseSelectedForOutput(self, name):  # la selección del usuario (vacía) que se debe devolver
+            return (False, 0)
+
+        def GetComboSelectedForOutput(self, name):
+            return (False, 0)
+
         def DeselectAllCasesAndCombosForOutput(self):
             self.calls.append(("deselect",))
             return 0
@@ -1231,7 +1237,13 @@ def test_snapshot_scoping_sets_output_selection_and_filters_joints_and_shells(mo
     data = _snapshot_from_model(
         model, groups=[], joints=["1", "2"], shells=["A1"], cases=["DEAD"], combos=["COMB1"]
     )
-    assert model.Results.Setup.calls == [("deselect",), ("case", "DEAD", True), ("combo", "COMB1", True)]
+    # el último deselect devuelve la selección de salida que tenía el usuario (aquí, ninguna)
+    assert model.Results.Setup.calls == [
+        ("deselect",),
+        ("case", "DEAD", True),
+        ("combo", "COMB1", True),
+        ("deselect",),
+    ]
     assert model.PointObj.calls == ["1", "2"]
     assert [row["joint"] for row in data["coordinates"]] == ["1", "2"]
     assert [row["shell"] for row in data["soil_pressures"]] == ["A1"]
@@ -1249,6 +1261,12 @@ def test_snapshot_without_cases_or_combos_selects_all_load_cases(monkeypatch):
     calls = []
 
     class Setup:
+        def GetCaseSelectedForOutput(self, name):  # la selección del usuario (vacía) que se debe devolver
+            return (False, 0)
+
+        def GetComboSelectedForOutput(self, name):
+            return (False, 0)
+
         def DeselectAllCasesAndCombosForOutput(self):
             calls.append("deselect")
             return 0
@@ -1332,6 +1350,7 @@ def test_snapshot_without_cases_or_combos_selects_all_load_cases(monkeypatch):
         "deselect",
         ("case", "DEAD", True),
         ("case", "LIVE", True),
+        "deselect",  # devuelve la selección de salida que tenía el usuario (aquí, ninguna)
     ]
     assert [row["joint"] for row in data["coordinates"]] == ["1", "2"]
     assert [row["shell"] for row in data["soil_pressures"]] == ["A1"]
@@ -1745,6 +1764,12 @@ class _SelectCaseModel:
     class Setup:
         def __init__(self):
             self.calls: list[tuple] = []
+
+        def GetCaseSelectedForOutput(self, name):  # la selección del usuario (vacía) que se debe devolver
+            return (False, 0)
+
+        def GetComboSelectedForOutput(self, name):
+            return (False, 0)
 
         def DeselectAllCasesAndCombosForOutput(self):
             self.calls.append(("deselect",))

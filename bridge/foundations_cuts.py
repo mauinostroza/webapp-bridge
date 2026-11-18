@@ -51,6 +51,7 @@ from bridge.actions import (
     model_is_locked,
     select_all_cases_for_output,
 )
+from bridge.seleccion_salida import con_avisos, preserve_output_selection
 
 TABLA_SECTION_CUTS = "Section Cut Definitions"
 
@@ -629,13 +630,16 @@ def install_routes(app: Any, call: Callable[[Callable[[Any], Any]], Any]) -> Non
     def section_cuts_forces(body: ForcesBody):
         def run(model: Any) -> dict[str, Any]:
             resultados: dict[str, list[dict[str, Any]]] = {}
+            avisos: list[str] = []
             try:
-                for cut in body.cuts:
-                    resultados[cut] = extraer_fuerzas_section_cut(model, cut, body.combos or None)
+                # La selección de salida del usuario se devuelve al terminar los cortes (una sola vez).
+                with preserve_output_selection(model, avisos):
+                    for cut in body.cuts:
+                        resultados[cut] = extraer_fuerzas_section_cut(model, cut, body.combos or None)
             except Exception as exc:
                 # Mismo criterio del panel original: si el modelo nunca se
                 # corrió (desbloqueado) el error es "Modelo no corrido".
                 raise SectionCutError(str(exc), model_not_run=not model_is_locked(model)) from exc
-            return {"resultados": resultados, "model_locked": model_is_locked(model)}
+            return con_avisos({"resultados": resultados, "model_locked": model_is_locked(model)}, avisos)
 
         return call(run)

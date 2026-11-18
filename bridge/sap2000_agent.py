@@ -29,6 +29,7 @@ from bridge.actions import select_all_cases_for_output as _select_all_cases_for_
 from bridge.alcances import ruta_permitida
 from bridge.com_tiempo import limite as com_limite
 from bridge.hosted import FUSION_ORIGIN, HOSTED_ORIGIN, SHARED_APP_ORIGINS
+from bridge.seleccion_salida import con_avisos, preserve_output_selection
 
 
 class SapComError(RuntimeError):
@@ -817,41 +818,58 @@ def _snapshot_from_model(
     previous = model.GetPresentUnits()
     if _return_code(model.SetPresentUnits(target)) != 0:
         raise SapComError(f"SetPresentUnits({unit_name}) failed")
+    avisos: list[str] = []
     try:
-        if cases is None and combos is None:
-            _select_all_cases_for_output(model)
-        else:
-            _set_output_selection(model, cases, combos)
-        names = (
-            [str(joint) for joint in joints]
-            if joints is not None
-            else _get_name_list(model.PointObj, "PointObj.GetNameList")
-        )
-        resolved_groups = groups if groups is not None else _groups_from_model(model)
-        if shells is None and joints is not None:
-            # Joints-only request (e.g. nodal diagrams): no shell was asked
-            # for, so the soil-pressure table is not read at all.
-            pressures = []
-        else:
-            pressures = _soil_pressures(model)
-            if shells is not None:
-                wanted = {str(shell) for shell in shells}
-                pressures = [row for row in pressures if row["shell"] in wanted]
-        return {
-            "model": {"path": str(model.GetModelFilename() or ""), "units": unit_name},
-            "coordinates": _coordinates(model, names),
-            "reactions": _joint_result_rows(model, "JointReact", names),
-            "displacements": _joint_result_rows(model, "JointDispl", names),
-            "soil_pressures": pressures,
-            "groups": resolved_groups,
-            # Port of estado_modelo.modelo_no_corrido == not model_is_locked:
-            # lets the web show the desktop's literal "modelo no corrido"
-            # message instead of a generic empty-results one.
-            "model_locked": _model_is_locked(model),
-        }
+        # La selección de salida que tenía el usuario se devuelve al terminar (también si la lectura falla).
+        with preserve_output_selection(model, avisos):
+            datos = _leer_snapshot(model, unit_name, groups, joints, shells, cases, combos)
+        return con_avisos(datos, avisos)
     finally:
         if _return_code(model.SetPresentUnits(previous)) != 0:
             raise SapComError("SAP2000 present units could not be restored")
+
+
+def _leer_snapshot(
+    model: Any,
+    unit_name: str,
+    groups: list[dict[str, Any]] | None,
+    joints: list[str] | None,
+    shells: list[str] | None,
+    cases: list[str] | None,
+    combos: list[str] | None,
+) -> dict[str, Any]:
+    """Marca los casos para salida y lee coordenadas, reacciones, desplazamientos y presiones (ya en Ton_m_C)."""
+    if cases is None and combos is None:
+        _select_all_cases_for_output(model)
+    else:
+        _set_output_selection(model, cases, combos)
+    names = (
+        [str(joint) for joint in joints]
+        if joints is not None
+        else _get_name_list(model.PointObj, "PointObj.GetNameList")
+    )
+    resolved_groups = groups if groups is not None else _groups_from_model(model)
+    if shells is None and joints is not None:
+        # Joints-only request (e.g. nodal diagrams): no shell was asked
+        # for, so the soil-pressure table is not read at all.
+        pressures = []
+    else:
+        pressures = _soil_pressures(model)
+        if shells is not None:
+            wanted = {str(shell) for shell in shells}
+            pressures = [row for row in pressures if row["shell"] in wanted]
+    return {
+        "model": {"path": str(model.GetModelFilename() or ""), "units": unit_name},
+        "coordinates": _coordinates(model, names),
+        "reactions": _joint_result_rows(model, "JointReact", names),
+        "displacements": _joint_result_rows(model, "JointDispl", names),
+        "soil_pressures": pressures,
+        "groups": resolved_groups,
+        # Port of estado_modelo.modelo_no_corrido == not model_is_locked:
+        # lets the web show the desktop's literal "modelo no corrido"
+        # message instead of a generic empty-results one.
+        "model_locked": _model_is_locked(model),
+    }
 
 
 def _snapshot(

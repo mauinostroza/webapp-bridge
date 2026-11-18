@@ -51,6 +51,7 @@ from bridge.actions import (
 )
 from bridge.com_orden import normalizar
 from bridge.com_tiempo import con_limite
+from bridge.seleccion_salida import preserve_output_selection
 from bridge.viewer.sap2000.units import UNIT_CODES, length_factor_to_meters, unit_label
 
 logger = logging.getLogger(__name__)
@@ -615,12 +616,14 @@ def leer_fuerzas(
     try:
         _salidas(model.SetPresentUnits(EUNITS_KN_M), "SetPresentUnits(kN_m_C)")
         factor = _factor_longitud(EUNITS_KN_M)
-        _seleccionar_salida(model, solicitadas, combinaciones)
         leidas = []
-        for barra in presentes:
-            filas, descartadas = _filas_barra(model, barra, set(solicitadas), advertencias)
-            _avisar_filas(barra, filas, descartadas, solicitadas, advertencias)
-            leidas.append((barra, _seccion(model, barra), _longitud_m(model, barra, factor), filas))
+        # La selección de salida que tenía el usuario se devuelve al terminar (también si la lectura falla).
+        with preserve_output_selection(model, advertencias):
+            _seleccionar_salida(model, solicitadas, combinaciones)
+            for barra in presentes:
+                filas, descartadas = _filas_barra(model, barra, set(solicitadas), advertencias)
+                _avisar_filas(barra, filas, descartadas, solicitadas, advertencias)
+                leidas.append((barra, _seccion(model, barra), _longitud_m(model, barra, factor), filas))
     finally:
         aviso = _restaurar_unidades(model, previas)
         if aviso:

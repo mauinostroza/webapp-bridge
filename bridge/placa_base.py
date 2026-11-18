@@ -37,7 +37,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable, Iterator, Sequence
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
 from typing import Any
 
@@ -45,6 +45,7 @@ from pydantic import BaseModel, field_validator
 
 from bridge.actions import ActionValidationError, _valid_combo_name, _valid_name, split_return
 from bridge.com_orden import normalizar
+from bridge.seleccion_salida import con_avisos, preserve_output_selection
 from bridge.str2fund import Str2FundError, _parse_selection_flag
 
 UNIDADES_TONF_M = 12  # eUnits.tonf_m: fuerza tonf, longitud m, temperatura C (placa_base_gui.py:1523)
@@ -402,15 +403,19 @@ def reacciones(
     ``angulo_deg`` de módulo >= 0.5, Vx, Vy, Mx y My se giran al eje local del perfil.
     """
     model = normalizar(model, destino_primero=False)
-    if casos or combinaciones:
-        _fijar_seleccion_de_salida(model, list(casos), list(combinaciones))
     candidatos = list(dict.fromkeys(nodos))
-    with _unidades_tonf_m(model):
-        filas: list[dict[str, Any]] = []
-        for nodo in candidatos:
-            if _estado_restriccion(model, nodo) is False:
-                continue
-            filas.extend(_reacciones_de_nodo(model, nodo))
+    avisos: list[str] = []
+    # Solo si se cambia la selección (casos o combinaciones pedidos) se devuelve la del usuario al terminar.
+    cambia = bool(casos or combinaciones)
+    with preserve_output_selection(model, avisos) if cambia else nullcontext():
+        if cambia:
+            _fijar_seleccion_de_salida(model, list(casos), list(combinaciones))
+        with _unidades_tonf_m(model):
+            filas: list[dict[str, Any]] = []
+            for nodo in candidatos:
+                if _estado_restriccion(model, nodo) is False:
+                    continue
+                filas.extend(_reacciones_de_nodo(model, nodo))
     if not filas:
         raise PlacaBaseError(
             "SAP2000 no devolvió reacciones. Ejecute el análisis y revise la selección de resultados."
@@ -418,12 +423,15 @@ def reacciones(
     rotadas = angulo_deg is not None and abs(angulo_deg) >= UMBRAL_ROTACION_DEG
     if rotadas:
         filas = [_rotar_al_eje_local(fila, angulo_deg) for fila in filas]
-    return {
-        "unidades": "tonf-m",
-        "ejes": "locales" if rotadas else "globales",
-        "angulo_deg": angulo_deg,
-        "reacciones": [{campo: fila[campo] for campo in _CAMPOS_REACCION} for fila in filas],
-    }
+    return con_avisos(
+        {
+            "unidades": "tonf-m",
+            "ejes": "locales" if rotadas else "globales",
+            "angulo_deg": angulo_deg,
+            "reacciones": [{campo: fila[campo] for campo in _CAMPOS_REACCION} for fila in filas],
+        },
+        avisos,
+    )
 
 
 # ---------------------------------------------------------------------------

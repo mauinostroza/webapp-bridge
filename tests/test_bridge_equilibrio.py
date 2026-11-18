@@ -33,6 +33,12 @@ class _Setup:
         self.selected: list[str] = []
         self.fail_combos = set(fail_combos)
 
+    def GetCaseSelectedForOutput(self, name):  # la selección del usuario (vacía) que se debe devolver
+        return (False, 0)
+
+    def GetComboSelectedForOutput(self, name):
+        return (False, 0)
+
     def DeselectAllCasesAndCombosForOutput(self):
         self.selected = []
         return 0
