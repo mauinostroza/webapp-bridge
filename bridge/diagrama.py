@@ -25,6 +25,7 @@ from typing import Any
 from pydantic import BaseModel, field_validator
 
 from bridge.actions import _valid_combo_name, _valid_name
+from bridge.seleccion_salida import con_avisos, preserve_output_selection
 
 _FRAME_OBJECT_TYPE = 2  # GroupDef.GetAssignments: 1=Point, 2=Frame, 5=Area
 _SELECTED_FRAME_TYPE = 2  # SelectObj.GetSelected: 1=Joint,2=Frame,3=Cable,4=Tendon,5=Area,6=Solid,7=Link
@@ -190,8 +191,14 @@ def get_selected_frame_names(model: Any) -> list[str]:
 
 
 def _get_demands_for_frames(
-    model: Any, frame_names: list[str], combo_names: list[str]
+    model: Any, frame_names: list[str], combo_names: list[str], avisos: list[str] | None = None
 ) -> list[dict[str, Any]]:
+    """Filas por estación de ``frame_names``; la selección de salida del usuario se devuelve al terminar."""
+    with preserve_output_selection(model, avisos):
+        return _leer_demandas(model, frame_names, combo_names)
+
+
+def _leer_demandas(model: Any, frame_names: list[str], combo_names: list[str]) -> list[dict[str, Any]]:
     """Extrae (P, M2, M3) de cada frame en ``frame_names``, en TODAS las
     estaciones de salida a lo largo de la barra, para cada combinación.
 
@@ -253,8 +260,9 @@ def get_group_demands(model: Any, group_name: str, combo_names: list[str]) -> di
     frame_names = get_group_frame_names(model, group_name)
     if not frame_names:
         raise SapDiagramaError(f"El grupo '{group_name}' no tiene ningún Frame object (columna) asignado.")
-    rows = _get_demands_for_frames(model, frame_names, combo_names)
-    return {"rows": rows, "n_frames": len(frame_names), "n_rows": len(rows)}
+    avisos: list[str] = []
+    rows = _get_demands_for_frames(model, frame_names, combo_names, avisos)
+    return con_avisos({"rows": rows, "n_frames": len(frame_names), "n_rows": len(rows)}, avisos)
 
 
 def get_selected_demands(model: Any, combo_names: list[str]) -> dict[str, Any]:
@@ -263,16 +271,18 @@ def get_selected_demands(model: Any, combo_names: list[str]) -> dict[str, Any]:
     frame_names = get_selected_frame_names(model)
     if not frame_names:
         raise SapDiagramaError("No hay ningún Frame object (columna) seleccionado en SAP2000.")
-    rows = _get_demands_for_frames(model, frame_names, combo_names)
-    return {"rows": rows, "n_frames": len(frame_names), "n_rows": len(rows)}
+    avisos: list[str] = []
+    rows = _get_demands_for_frames(model, frame_names, combo_names, avisos)
+    return con_avisos({"rows": rows, "n_frames": len(frame_names), "n_rows": len(rows)}, avisos)
 
 
 def get_frames_demands(model: Any, frame_names: list[str], combo_names: list[str]) -> dict[str, Any]:
     """Igual que ``get_group_demands`` para una lista explícita de frames (p. ej. una selección guardada)."""
     if not frame_names:
         raise SapDiagramaError("La lista de frames está vacía.")
-    rows = _get_demands_for_frames(model, frame_names, combo_names)
-    return {"rows": rows, "n_frames": len(frame_names), "n_rows": len(rows)}
+    avisos: list[str] = []
+    rows = _get_demands_for_frames(model, frame_names, combo_names, avisos)
+    return con_avisos({"rows": rows, "n_frames": len(frame_names), "n_rows": len(rows)}, avisos)
 
 
 def get_group_frames(model: Any, group_name: str) -> dict[str, Any]:

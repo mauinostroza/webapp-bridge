@@ -269,6 +269,12 @@ def test_snapshot_model_locked_reflects_get_model_is_locked(monkeypatch):
             return (0, 0.0, 0.0, 0.0)
 
     class Setup:
+        def GetCaseSelectedForOutput(self, name):  # la selección del usuario (vacía) que se debe devolver
+            return (False, 0)
+
+        def GetComboSelectedForOutput(self, name):
+            return (False, 0)
+
         def DeselectAllCasesAndCombosForOutput(self):
             return 0
 

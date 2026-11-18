@@ -76,6 +76,12 @@ class _Setup:
     def __init__(self):
         self.log = []
 
+    def GetCaseSelectedForOutput(self, name):  # la selección del usuario (vacía) que se debe devolver
+        return (False, 0)
+
+    def GetComboSelectedForOutput(self, name):
+        return (False, 0)
+
     def DeselectAllCasesAndCombosForOutput(self):
         self.log.append(("deselect",))
         return 0

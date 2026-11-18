@@ -43,6 +43,7 @@ from bridge.actions import (
     shell_geometry,
     shell_soil_pressure,
 )
+from bridge.seleccion_salida import con_avisos, preserve_output_selection
 
 logger = logging.getLogger(__name__)
 
@@ -689,6 +690,13 @@ class PedestalCandidatesBody(BaseModel):
 
 
 def shell_results(model: Any, body: ShellResultsBody) -> dict[str, Any]:
+    avisos: list[str] = []
+    # la selección de salida del usuario se devuelve al terminar
+    with preserve_output_selection(model, avisos):
+        return con_avisos(_shell_results(model, body), avisos)
+
+
+def _shell_results(model: Any, body: ShellResultsBody) -> dict[str, Any]:
     _select_case_for_output(model, body.combinacion)
     joints_z: dict[str, float] = {}
     elementos, joints, elementos_por_area = shell_geometry(model, body.shells, joints_z)
@@ -710,6 +718,13 @@ def shell_results(model: Any, body: ShellResultsBody) -> dict[str, Any]:
 
 
 def shell_results_multi(model: Any, body: ShellResultsMultiBody) -> dict[str, Any]:
+    avisos: list[str] = []
+    # la selección de salida del usuario se devuelve al terminar
+    with preserve_output_selection(model, avisos):
+        return con_avisos(_shell_results_multi(model, body), avisos)
+
+
+def _shell_results_multi(model: Any, body: ShellResultsMultiBody) -> dict[str, Any]:
     elementos, joints, elementos_por_area = shell_geometry(model, body.shells)
     componentes = body.componentes or _componentes_validos(body.tipo)
     franjas = [f.model_dump() for f in body.franjas]

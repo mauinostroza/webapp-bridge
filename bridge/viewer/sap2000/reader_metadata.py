@@ -20,6 +20,7 @@ from bridge.viewer.sap2000.reader_utils import (
     _available_database_tables,
     _match_database_table_keys,
 )
+from bridge.seleccion_salida import preserve_output_selection
 from bridge.viewer.sap2000.reader_results import _select_all_output_cases, _result_output_cases
 from bridge.viewer.sap2000.reader_geometry import _group_memberships, _frame_geometry
 from bridge.viewer.sap2000.table_aliases import aliases_for
@@ -64,7 +65,10 @@ def model_info(model: Any, limit: int | None = None) -> dict:
 def diagnostics(model: Any, limit: int | None = None, sections_data: dict | None = None) -> dict:
     db = getattr(model, "DatabaseTables", None)
     database_tables = _available_database_tables(db) if db is not None else []
-    setup = _select_all_output_cases(model)
+    avisos: list[str] = []
+    # El diagnóstico marca para salida todos los casos: se devuelve la selección que tenía el usuario.
+    with preserve_output_selection(model, avisos):
+        setup = _select_all_output_cases(model)
     rows = [
         ["Modelo", "", _safe_value(lambda: model.GetModelFilename())],
         ["Unidades presentes", "", _safe_value(lambda: _format_present_units(_last(model.GetPresentUnits())))],
@@ -102,6 +106,7 @@ def diagnostics(model: Any, limit: int | None = None, sections_data: dict | None
             "; ".join(setup.get("selection_errors", [])),
         ],
         ["Tablas internas SAP2000", len(database_tables), ""],
+        *([["Avisos de la selección de salida", len(avisos), "; ".join(avisos)]] if avisos else []),
         [
             "Tabla de fuerzas encontrada",
             "",

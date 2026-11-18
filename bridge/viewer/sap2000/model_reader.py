@@ -1,8 +1,11 @@
 # Copiado de SAP2000_AI_ASSISTANT@572b684 (solo se reescriben imports).
 from __future__ import annotations
 
+import functools
 import math
 from typing import Any
+
+from bridge.seleccion_salida import preserve_output_selection
 
 from bridge.viewer.sap2000.table_aliases import aliases_for
 
@@ -77,6 +80,26 @@ _STEEL_RATIO_TYPE_LABELS = {
     5: "Capacidad viga-columna menor",
     6: "Otro",
 }
+
+
+def _preservando_seleccion(metodo):
+    """Lecturas de resultados: la selección de salida del usuario se devuelve al terminar (también si falla).
+
+    Cada lectura marca para salida solo los casos pedidos (``_select_output_cases``). Los avisos (selección ilegible o
+    no restaurable) van a ``metadata.warnings`` de la tabla devuelta.
+    """
+
+    @functools.wraps(metodo)
+    def envoltura(self, *args, **kwargs):
+        avisos: list[str] = []
+        with preserve_output_selection(self.model, avisos):
+            tabla = metodo(self, *args, **kwargs)
+        if avisos and isinstance(tabla, dict):
+            metadata = tabla.setdefault("metadata", {})
+            metadata["warnings"] = [*metadata.get("warnings", []), *avisos]
+        return tabla
+
+    return envoltura
 
 
 class SapModelReader:
@@ -764,6 +787,7 @@ class SapModelReader:
 
     # ── Results ───────────────────────────────────────────────────
 
+    @_preservando_seleccion
     def joint_displacements(self, limit: int | None = None, joint_name: str | None = None) -> dict:
         setup = _select_output_cases(self.model, self.result_filter)
         read_limit = None if joint_name else limit
@@ -794,6 +818,7 @@ class SapModelReader:
                 )
         return _finalize_result_table(table, self.result_filter, joint_name, ["Joint", "Obj", "Object", "Elm", "Element"], limit)
 
+    @_preservando_seleccion
     def frame_forces(self, limit: int | None = None, frame_name: str | None = None) -> dict:
         setup = _select_output_cases(self.model, self.result_filter)
         read_limit = None if frame_name else limit
@@ -827,6 +852,7 @@ class SapModelReader:
                 )
         return _finalize_result_table(table, self.result_filter, frame_name, ["Frame", "Obj", "Object", "Elm", "Element"], limit)
 
+    @_preservando_seleccion
     def section_cut_forces(self, limit: int | None = None, cut_name: str | None = None) -> dict:
         """Fuerzas/momentos totales de un section cut (SapModel.Results.SectionCutAnalysis).
 
@@ -854,6 +880,7 @@ class SapModelReader:
         )
         return _finalize_result_table(table, self.result_filter, cut_name, ["SCut", "SectionCut", "Name"], limit)
 
+    @_preservando_seleccion
     def area_forces(self, limit: int | None = None, area_name: str | None = None) -> dict:
         """Fuerzas/momentos de shell por punto de esquina (SapModel.Results.AreaForceShell):
         F11/F22/F12, M11/M22/M12, V13/V23. Calcado de frame_forces() — misma
@@ -879,6 +906,7 @@ class SapModelReader:
         )
         return _finalize_result_table(table, self.result_filter, area_name, ["Area", "Obj", "Object", "Elm", "Element"], limit)
 
+    @_preservando_seleccion
     def joint_reactions(self, limit: int | None = None, joint_name: str | None = None) -> dict:
         setup = _select_output_cases(self.model, self.result_filter)
         read_limit = None if joint_name else limit

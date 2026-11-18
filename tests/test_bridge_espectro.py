@@ -75,6 +75,12 @@ class _ResultsSetup:
         self.selected_case: str | None = None
         self.select_history: list[str] = []
 
+    def GetCaseSelectedForOutput(self, name):  # la selección del usuario (vacía) que se debe devolver
+        return (False, 0)
+
+    def GetComboSelectedForOutput(self, name):
+        return (False, 0)
+
     def DeselectAllCasesAndCombosForOutput(self):
         self.deselect_calls += 1
 
@@ -250,7 +256,9 @@ def test_calcular_ps_sums_factor_times_fz_with_output_selection():
     )
     ps = calcular_ps(model, [{"case": "MS1", "factor": 1.0}, {"case": "MS2", "factor": 0.5}])
     assert ps == 125.0
-    assert model.Results.Setup.deselect_calls == 2
+    assert (
+        model.Results.Setup.deselect_calls == 3
+    )  # uno por caso leído y otro al devolver la selección del usuario
     assert model.Results.Setup.select_history == ["MS1", "MS2"]
     assert model.Results.base_react_calls == ["MS1", "MS2"]
 

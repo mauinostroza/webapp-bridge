@@ -51,6 +51,7 @@ def resultados(
     with bulk.preserve_output_selection(model, avisos):
         # shells=None con nudos dados = no se lee la tabla de presiones (no hay shells que pedir).
         datos = _snapshot_from_model(model, echo, joints, shells or None, cases, combos)
+    avisos.extend(datos.get("warnings", []))
     areas, faltantes = _areas_y_faltantes(model, joints, shells, avisos)
     truncado = False
     for clave in _LISTAS_CON_TOPE:

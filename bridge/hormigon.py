@@ -25,6 +25,7 @@ from typing import Any
 from pydantic import BaseModel, field_validator
 
 from bridge.actions import _valid_combo_name, _valid_name, split_return
+from bridge.seleccion_salida import con_avisos, preserve_output_selection
 from bridge.viewer.sap2000.units import UNIT_CODES, length_factor_to_meters, unit_label
 
 _EUNITS_TONF_M = 12  # eUnits.tonf_m
@@ -241,20 +242,26 @@ def get_frame_forces(model: Any, frame: str, combos: list[str]) -> dict[str, Any
     devuelve columnas paralelas ``filas`` para que el servidor construya la demanda.
     """
     pedidos = list(dict.fromkeys(combos))
-    filas = _leer_en_tonf_m(model, frame, pedidos)
+    avisos: list[str] = []
+    # La selección de salida que tenía el usuario se devuelve al terminar (también si la lectura falla).
+    with preserve_output_selection(model, avisos):
+        filas = _leer_en_tonf_m(model, frame, pedidos)
     presentes = set(filas["caso"])
     faltan = [c for c in pedidos if c not in presentes]
     if faltan:
         raise SapHormigonError(f"Casos inexistentes en {frame}: {faltan}")
     estaciones = filas["estacion_m"]
     return _clean(
-        {
-            "frame": frame,
-            "longitud_m": max(estaciones) if estaciones else None,
-            "unidades": {"fuerza": "tonf", "longitud": "m"},
-            "combos": pedidos,
-            "filas": filas,
-        }
+        con_avisos(
+            {
+                "frame": frame,
+                "longitud_m": max(estaciones) if estaciones else None,
+                "unidades": {"fuerza": "tonf", "longitud": "m"},
+                "combos": pedidos,
+                "filas": filas,
+            },
+            avisos,
+        )
     )
 
 

@@ -29,12 +29,14 @@ Lógica del diálogo original portada:
 from __future__ import annotations
 
 from collections.abc import Callable
+from contextlib import contextmanager
 from typing import Any
 
 from pydantic import BaseModel, field_validator
 
 from bridge import equilibrio_sap as sap
 from bridge.actions import ActionValidationError, _valid_combo_name, _valid_name
+from bridge.seleccion_salida import preserve_output_selection
 
 _MAX_NAME = 100
 _MAX_MEMBERS = 200
@@ -72,6 +74,11 @@ def list_group_members(model: Any, group: str) -> list[str]:
     return members
 
 
+@contextmanager
+def _sin_cambios():
+    yield
+
+
 def get_frame_data(
     model: Any, frame: str, combo_sismo: str | None = None, combo_grav: str | None = None
 ) -> dict[str, Any]:
@@ -81,18 +88,20 @@ def get_frame_data(
         raise SapEquilibrioError(msg)
     avisos: list[str] = []
     axial_sismo = axial_grav = None
-    if combo_sismo:
-        val, ok, msg = sap.get_frame_axial_force(model, frame, combo_sismo)
-        if ok:
-            axial_sismo = val
-        else:
-            avisos.append(msg)
-    if combo_grav:
-        val, ok, msg = sap.get_frame_axial_force_gravity(model, frame, combo_grav)
-        if ok:
-            axial_grav = val
-        else:
-            avisos.append(msg)
+    # Leer la fuerza axial marca el combo para salida: la selección del usuario se devuelve al terminar.
+    with preserve_output_selection(model, avisos) if (combo_sismo or combo_grav) else _sin_cambios():
+        if combo_sismo:
+            val, ok, msg = sap.get_frame_axial_force(model, frame, combo_sismo)
+            if ok:
+                axial_sismo = val
+            else:
+                avisos.append(msg)
+        if combo_grav:
+            val, ok, msg = sap.get_frame_axial_force_gravity(model, frame, combo_grav)
+            if ok:
+                axial_grav = val
+            else:
+                avisos.append(msg)
     return {
         "frame": frame,
         "H": h,
@@ -111,19 +120,27 @@ def get_group_demands(model: Any, group: str, combo_sismo: str | None = None) ->
     if not combo_sismo:
         # El original omite las filas sin combo elegido.
         return {"group": group, "members": members, "avisos": avisos}
-    for frame in frames:
-        force, ok, msg = sap.get_frame_axial_force(model, frame, combo_sismo)
-        if not ok:
-            avisos.append(f"Grupo — {frame}: {msg}")
-            continue
-        member_avisos: list[str] = []
-        (h, length), ok_h, msg_h = sap.get_frame_geometry(model, frame)
-        if not ok_h:
-            member_avisos.append(f"Grupo — {frame}: {msg_h}")
-            h, length = _DEFAULT_HL, _DEFAULT_HL
-        members.append(
-            {"label": frame, "Tn_req": force, "Pn_req": force, "H": h, "L": length, "avisos": member_avisos}
-        )
+    with preserve_output_selection(model, avisos):  # la selección del usuario se devuelve al terminar
+        for frame in frames:
+            force, ok, msg = sap.get_frame_axial_force(model, frame, combo_sismo)
+            if not ok:
+                avisos.append(f"Grupo — {frame}: {msg}")
+                continue
+            member_avisos: list[str] = []
+            (h, length), ok_h, msg_h = sap.get_frame_geometry(model, frame)
+            if not ok_h:
+                member_avisos.append(f"Grupo — {frame}: {msg_h}")
+                h, length = _DEFAULT_HL, _DEFAULT_HL
+            members.append(
+                {
+                    "label": frame,
+                    "Tn_req": force,
+                    "Pn_req": force,
+                    "H": h,
+                    "L": length,
+                    "avisos": member_avisos,
+                }
+            )
     return {"group": group, "members": members, "avisos": avisos}
 
 

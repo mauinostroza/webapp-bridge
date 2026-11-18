@@ -25,6 +25,7 @@ from collections import OrderedDict
 from contextlib import contextmanager
 from typing import Any, Iterator
 
+from bridge.seleccion_salida import _capture_selection, _selected_flag, preserve_output_selection  # noqa: F401
 from bridge.viewer.core.results import ResultsError, _finite, _notes, _reader, _require_rows, _units, list_cases
 from bridge.viewer.sap2000.reader_results import _load_case_names, _load_combination_names
 from bridge.viewer.sap2000.units import _LENGTH_UNIT_TO_METERS
@@ -41,60 +42,7 @@ REACTION_COMPONENTS = ("F1", "F2", "F3", "M1", "M2", "M3")
 # --- Selección de salida ------------------------------------------------------
 
 
-def _selected_flag(ret: Any) -> bool | None:
-    """Lee el booleano de ``Get*SelectedForOutput`` sin depender del orden del retorno."""
-    if isinstance(ret, (tuple, list)):
-        for value in ret:
-            if isinstance(value, bool):
-                return value
-        return None
-    return ret if isinstance(ret, bool) else None
-
-
-def _capture_selection(model: Any) -> tuple[list[str], list[str]] | None:
-    """Casos y combinaciones marcados para salida, o ``None`` si no se puede leer."""
-    setup = model.Results.Setup
-    selected: list[list[str]] = []
-    for names, getter in (
-        (_load_case_names(model), setup.GetCaseSelectedForOutput),
-        (_load_combination_names(model), setup.GetComboSelectedForOutput),
-    ):
-        flags = [(n, _selected_flag(getter(n))) for n in names]
-        # Si algún valor no se pudo interpretar, mejor no «restaurar» una selección inventada.
-        if any(flag is None for _, flag in flags):
-            return None
-        selected.append([n for n, flag in flags if flag])
-    return selected[0], selected[1]
-
-
-@contextmanager
-def preserve_output_selection(model: Any, warnings: list[str] | None = None) -> Iterator[None]:
-    """Restaura la selección de salida del usuario al terminar la lectura.
-
-    Leer resultados deselecciona y vuelve a seleccionar casos (``Results.Setup``), un
-    estado de visualización de SAP2000 que el usuario no espera ver cambiado.
-    """
-    avisos = warnings if warnings is not None else []
-    try:
-        saved = _capture_selection(model)
-    except Exception:
-        saved = None
-    if saved is None:
-        avisos.append("No se pudo leer la selección de salida de SAP2000: puede haber cambiado tras la lectura.")
-    try:
-        yield
-    finally:
-        if saved is not None:
-            cases, combos = saved
-            try:
-                setup = model.Results.Setup
-                setup.DeselectAllCasesAndCombosForOutput()
-                for name in cases:
-                    setup.SetCaseSelectedForOutput(name, True)
-                for name in combos:
-                    setup.SetComboSelectedForOutput(name, True)
-            except Exception as exc:  # noqa: BLE001 - restaurar es de mejor esfuerzo
-                avisos.append(f"No se pudo restaurar la selección de salida de SAP2000: {exc}")
+# La captura y restauración viven en el módulo común ``bridge.seleccion_salida`` (se reexportan aquí).
 
 
 # --- Utilidades -----------------------------------------------------------------

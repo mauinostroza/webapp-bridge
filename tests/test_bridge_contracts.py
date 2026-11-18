@@ -192,6 +192,12 @@ class _AreaElm:
 
 
 class _ResultsSetup:
+    def GetCaseSelectedForOutput(self, name):  # la selección del usuario (vacía) que se debe devolver
+        return (False, 0)
+
+    def GetComboSelectedForOutput(self, name):
+        return (False, 0)
+
     def DeselectAllCasesAndCombosForOutput(self):
         return 0
 
@@ -560,6 +566,12 @@ def test_snapshot_shape(monkeypatch, contracts):
     from bridge.sap2000_agent import _snapshot_from_model
 
     class Setup:
+        def GetCaseSelectedForOutput(self, name):  # la selección del usuario (vacía) que se debe devolver
+            return (False, 0)
+
+        def GetComboSelectedForOutput(self, name):
+            return (False, 0)
+
         def DeselectAllCasesAndCombosForOutput(self):
             return 0
 

@@ -35,6 +35,12 @@ class _Setup:
         self.selected: list[str] = []
         self.calls: list[tuple] = []
 
+    def GetCaseSelectedForOutput(self, name):  # la selección del usuario (vacía) que se debe devolver
+        return (False, 0)
+
+    def GetComboSelectedForOutput(self, name):
+        return (False, 0)
+
     def DeselectAllCasesAndCombosForOutput(self):
         self.calls.append(("deselect",))
         self.selected = []
@@ -203,7 +209,8 @@ def test_frame_forces_devuelve_filas_crudas():
     assert len({len(v) for v in result["filas"].values()}) == 1
     # Mismos argumentos COM que el original.
     assert model.Results.args == [("B1", 0)]  # firma corta (la larga de 17 argumentos falla con pywin32)
-    assert model.Results.Setup.calls == [("deselect",), ("combo", "C1"), ("combo", "C2")]
+    # al terminar se devuelve la selección del usuario (aquí, ninguna): un deselect final
+    assert model.Results.Setup.calls == [("deselect",), ("combo", "C1"), ("combo", "C2"), ("deselect",)]
 
 
 def test_frame_forces_combos_sin_duplicados_en_orden_pedido():
@@ -215,7 +222,7 @@ def test_frame_forces_combos_sin_duplicados_en_orden_pedido():
 def test_non_combo_case_uses_case_selection():
     model = FakeModel(data={"C1": DATA["C1"], "DEAD": DATA["C1"]})
     get_frame_forces(model, "B1", ["C1", "DEAD"])
-    assert model.Results.Setup.calls == [("deselect",), ("combo", "C1"), ("case", "DEAD")]
+    assert model.Results.Setup.calls == [("deselect",), ("combo", "C1"), ("case", "DEAD"), ("deselect",)]
 
 
 def test_frame_forces_convierte_unidades_presentes():

@@ -28,6 +28,7 @@ from typing import Any
 from pydantic import BaseModel, field_validator
 
 from bridge.actions import _valid_name, split_return
+from bridge.seleccion_salida import con_avisos, preserve_output_selection
 
 DAMP_RATIO_DEFAULT = 0.05
 FUNC_TYPE_RESPONSE_SPECTRUM = 1
@@ -241,36 +242,44 @@ def _en_tonf(model: Any, operation: Callable[[], Any]) -> Any:
             model.SetPresentUnits(previous)
 
 
-def calcular_ps(model: Any, filas: list[dict[str, Any]]) -> float:
+def calcular_ps(model: Any, filas: list[dict[str, Any]], avisos: list[str] | None = None) -> float:
     """Ps = Σ (factor × ΣFZ Base Reactions) por load case. Port literal de
     ``_calcular_ps``: se detiene en el primer load case sin resultados
     (mismo criterio que el original — no acumula parcialmente)."""
 
     def run() -> float:
         total = 0.0
-        for fila in filas:
-            _fx, _fy, fz = get_base_reaction_sums(model, fila["case"])
-            total += fila["factor"] * fz
+        # la selección de salida del usuario se devuelve al terminar
+        with preserve_output_selection(model, avisos):
+            for fila in filas:
+                _fx, _fy, fz = get_base_reaction_sums(model, fila["case"])
+                total += fila["factor"] * fz
         return total
 
     return _en_tonf(model, run)
 
 
-def calcular_qxqy(model: Any, case_x: str, case_y: str) -> tuple[float, float]:
+def calcular_qxqy(
+    model: Any, case_x: str, case_y: str, avisos: list[str] | None = None
+) -> tuple[float, float]:
     """Qx = ΣFX del caso Sismo X, Qy = ΣFY del caso Sismo Y (no el mismo
     caso). Port literal de ``_calcular_qxqy``."""
 
     def run() -> tuple[float, float]:
-        qx, _fy_x, _fz_x = get_base_reaction_sums(model, case_x)
-        _fx_y, qy, _fz_y = get_base_reaction_sums(model, case_y)
+        # la selección de salida del usuario se devuelve al terminar
+        with preserve_output_selection(model, avisos):
+            qx, _fy_x, _fz_x = get_base_reaction_sums(model, case_x)
+            _fx_y, qy, _fz_y = get_base_reaction_sums(model, case_y)
         return qx, qy
 
     return _en_tonf(model, run)
 
 
-def calcular_modal(model: Any, modal_case: str) -> tuple[float, float]:
+def calcular_modal(model: Any, modal_case: str, avisos: list[str] | None = None) -> tuple[float, float]:
     """Port literal de ``_calcular_modal`` → ``get_modal_periods_at_max_mass``."""
-    return get_modal_periods_at_max_mass(model, modal_case)
+    # la selección de salida del usuario se devuelve al terminar
+    with preserve_output_selection(model, avisos):
+        return get_modal_periods_at_max_mass(model, modal_case)
 
 
 def enviar_curvas(model: Any, jobs: list[tuple[str, list[float], list[float]]]) -> dict[str, Any]:
@@ -390,21 +399,29 @@ def install_routes(app: Any, call: Callable[[Callable[[Any], Any]], Any]) -> Non
     @app.post(f"{prefix}/ps")
     def espectro_ps(body: PsBody):
         filas = [row.model_dump() for row in body.rows]
-        return call(lambda model: {"ps": calcular_ps(model, filas)})
+
+        def run(model: Any) -> dict[str, Any]:
+            avisos: list[str] = []
+            ps = calcular_ps(model, filas, avisos)
+            return con_avisos({"ps": ps}, avisos)
+
+        return call(run)
 
     @app.post(f"{prefix}/qxqy")
     def espectro_qxqy(body: QxQyBody):
-        def run(model: Any) -> dict[str, float]:
-            qx, qy = calcular_qxqy(model, body.case_x, body.case_y)
-            return {"qx": qx, "qy": qy}
+        def run(model: Any) -> dict[str, Any]:
+            avisos: list[str] = []
+            qx, qy = calcular_qxqy(model, body.case_x, body.case_y, avisos)
+            return con_avisos({"qx": qx, "qy": qy}, avisos)
 
         return call(run)
 
     @app.post(f"{prefix}/modal")
     def espectro_modal(body: ModalBody):
-        def run(model: Any) -> dict[str, float]:
-            tx, ty = calcular_modal(model, body.modal_case)
-            return {"Tx": tx, "Ty": ty}
+        def run(model: Any) -> dict[str, Any]:
+            avisos: list[str] = []
+            tx, ty = calcular_modal(model, body.modal_case, avisos)
+            return con_avisos({"Tx": tx, "Ty": ty}, avisos)
 
         return call(run)
 

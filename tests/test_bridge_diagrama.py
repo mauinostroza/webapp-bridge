@@ -31,6 +31,12 @@ class _Setup:
         self.deselect_calls = 0
         self.selected: list[str] = []
 
+    def GetCaseSelectedForOutput(self, name):  # la selección del usuario (vacía) que se debe devolver
+        return (False, 0)
+
+    def GetComboSelectedForOutput(self, name):
+        return (False, 0)
+
     def DeselectAllCasesAndCombosForOutput(self):
         self.deselect_calls += 1
         self.selected = []
