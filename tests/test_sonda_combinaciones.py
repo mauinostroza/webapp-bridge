@@ -78,3 +78,11 @@ def test_informe_markdown_lista_los_inesperados():
     inf = sonda.Informe()
     inf.agregar(fase="L", id="t", veredicto=sonda.INESPERADO, nota="se borró C1", dif={})
     assert "se borró C1" in inf.a_markdown()
+
+
+def test_causa_desenvuelve_el_grupo_de_excepciones():
+    try:
+        raise BaseExceptionGroup("x", [ValueError("falló k")])
+    except BaseExceptionGroup as exc:
+        texto = sonda._causa(exc)
+    assert texto.startswith("ValueError: falló k")

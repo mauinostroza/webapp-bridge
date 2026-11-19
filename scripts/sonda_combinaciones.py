@@ -66,6 +66,19 @@ def _recortar(valor: Any) -> str:
     return texto if len(texto) <= LIMITE_CRUDO else texto[:LIMITE_CRUDO] + "…"
 
 
+def _causa(exc: BaseException) -> str:
+    """Excepción hoja de un ``ExceptionGroup`` con el archivo y la línea donde se produjo."""
+    while isinstance(exc, BaseExceptionGroup) and exc.exceptions:
+        exc = exc.exceptions[0]
+    tb = exc.__traceback__
+    ultimo = None
+    while tb is not None:
+        ultimo = tb
+        tb = tb.tb_next
+    donde = f" en {Path(ultimo.tb_frame.f_code.co_filename).name}:{ultimo.tb_lineno}" if ultimo else ""
+    return f"{type(exc).__name__}: {exc}{donde}"
+
+
 def _sha_archivo(ruta: Path) -> str | None:
     try:
         h = hashlib.sha256()
@@ -316,11 +329,16 @@ class Sonda:
         )
 
     def http(self, metodo: str, ruta: str, cuerpo: dict[str, Any] | None = None) -> tuple[int, Any]:
-        r = (
-            self.cliente.request(metodo, ruta, json=cuerpo)
-            if cuerpo is not None
-            else self.cliente.request(metodo, ruta)
-        )
+        """Llama a una ruta. Una excepción no controlada de la ruta se devuelve como 500 con su causa (no aborta la sonda)."""
+        try:
+            if cuerpo is not None:
+                r = self.cliente.request(metodo, ruta, json=cuerpo)
+            else:
+                r = self.cliente.request(metodo, ruta)
+        except BaseException as exc:  # noqa: BLE001 - incluye ExceptionGroup de Starlette
+            if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+                raise
+            return 500, "excepción no controlada: " + _causa(exc)
         try:
             datos = r.json()
         except ValueError:
