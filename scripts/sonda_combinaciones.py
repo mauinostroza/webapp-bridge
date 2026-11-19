@@ -6,6 +6,9 @@ escribe en el archivo original, y al final comprueba con un hash que sigue intac
 los de SAP2000: además de llamar a las rutas del puente, ejecuta pruebas de control con la API cruda (desbloquear,
 analizar, cambiar la selección de salida, ``RespCombo.Add/Delete``, diseño...).
 
+Requisitos: el entorno de Python debe tener las dependencias del puente
+(``py -3.12 -m pip install -r backend\\requirements.txt pywin32 httpx``).
+
 Uso (PowerShell, Windows, SAP2000 abierto con el modelo problemático, idealmente con análisis corrido y bloqueado):
 
     py -3.12 scripts\\sonda_combinaciones.py
@@ -693,6 +696,12 @@ def main(argv: list[str] | None = None) -> int:
     except Rechazo as exc:
         print(f"RECHAZADO: {exc}")
         return 3
+    except ImportError as exc:
+        print(
+            f"Faltan dependencias del puente ({exc}). Instálelas en este entorno y vuelva a ejecutar:\n"
+            "    py -3.12 -m pip install -r backend\\requirements.txt pywin32 httpx"
+        )
+        return 2
     except Exception as exc:  # noqa: BLE001
         print(f"No se pudo conectar con SAP2000: {exc}")
         return 2
