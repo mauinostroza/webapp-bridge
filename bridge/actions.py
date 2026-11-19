@@ -1352,6 +1352,97 @@ def _parse_load_force(response: Any) -> list[dict[str, Any]]:
     ]
 
 
+class _LecturaCargasError(RuntimeError):
+    """``PointObj.GetLoadForce`` no entregó una respuesta utilizable (código distinto de 0 o forma inesperada)."""
+
+
+def _parse_load_force_estricto(response: Any, joint: str) -> list[dict[str, Any]]:
+    """Como ``_parse_load_force``, pero un error de lectura se lanza en vez de confundirse con «sin cargas».
+
+    Falla (``_LecturaCargasError``) si el código de retorno no es 0 o la respuesta no trae los 10 arreglos. Una respuesta
+    con solo ceros (conteo 0 y código 0) y sin arreglos sí es «el nodo no tiene cargas».
+    """
+    operacion = f"PointObj.GetLoadForce({joint!r})"
+    if not isinstance(response, (tuple, list)):
+        raise _LecturaCargasError(
+            f"SAP2000 {operacion} devolvió una respuesta inesperada ({type(response).__name__})."
+        )
+    try:
+        codigo = _ret_code(tuple(response), operacion)
+    except RuntimeError as exc:
+        raise _LecturaCargasError(str(exc)) from exc
+    if codigo != 0:
+        raise _LecturaCargasError(f"SAP2000 {operacion} devolvió el código {codigo}.")
+    arreglos = [x for x in response if isinstance(x, (list, tuple))]
+    if len(arreglos) < 10:
+        enteros = [x for x in response if isinstance(x, int) and not isinstance(x, bool)]
+        if enteros and all(x == 0 for x in enteros):
+            return []
+        raise _LecturaCargasError(
+            f"SAP2000 {operacion} devolvió {len(arreglos)} arreglos; se esperaban 10 (respuesta inesperada)."
+        )
+    try:
+        return _parse_load_force(response)
+    except (TypeError, ValueError, IndexError) as exc:
+        raise _LecturaCargasError(f"SAP2000 {operacion} devolvió valores no numéricos: {exc}") from exc
+
+
+def _cargas_nodos(
+    model: Any, joints: list[str], errores: list[dict[str, str]] | None = None
+) -> list[dict[str, Any]]:
+    """Cargas nodales actuales, sumadas por (nodo, patrón, sistema de coordenadas).
+
+    Con ``errores`` (lista) un error de lectura de un nodo se acumula como ``{joint, message}`` y el nodo no aporta filas;
+    sin ella se conserva la lectura tolerante de siempre (una respuesta que no se entiende es «sin cargas»), que usan
+    también las cargas de CAESAR II.
+    """
+    rows: dict[tuple[str, str, str], dict[str, Any]] = {}
+    for joint in dict.fromkeys(str(j) for j in joints):
+        response = model.PointObj.GetLoadForce(joint, 0, [], [], [], [], [], [], [], [], [], [], 0)
+        if errores is None:
+            items = _parse_load_force(response)
+        else:
+            try:
+                items = _parse_load_force_estricto(response, joint)
+            except _LecturaCargasError as exc:
+                errores.append({"joint": joint, "message": str(exc)})
+                continue
+        for item in items:
+            key = (joint, item["load_pat"], item["coord_sys"])
+            row = rows.setdefault(
+                key,
+                {"joint": joint, "load_pat": item["load_pat"], "coord_sys": item["coord_sys"]}
+                | {field: 0.0 for field in _LOAD_FIELDS},
+            )
+            for field in _LOAD_FIELDS:
+                row[field] += item[field]
+    return list(rows.values())
+
+
+def _clave_texto(valor: Any) -> str:
+    """Nombre de patrón o de sistema de coordenadas para comparar: sin espacios en los extremos y sin distinguir mayúsculas."""
+    return str(valor if valor is not None else "").strip().casefold()
+
+
+def _clave_csys(valor: Any) -> str:
+    """Como ``_clave_texto``, pero un sistema de coordenadas vacío equivale a «Global»."""
+    return _clave_texto(valor) or "global"
+
+
+def _con_errores_de_lectura(resultado: dict[str, Any], errores: list[dict[str, str]]) -> dict[str, Any]:
+    """Añade ``read_errors`` y su aviso en ``warnings`` solo si hubo errores (claves opcionales)."""
+    if errores:
+        resultado["read_errors"] = errores
+        nodos = ", ".join(e["joint"] for e in errores[:10]) + (
+            f" y {len(errores) - 10} más" if len(errores) > 10 else ""
+        )
+        resultado["warnings"] = [
+            *resultado.get("warnings", []),
+            f"No se pudieron leer las cargas actuales de los nodos {nodos}; no se interpretan como «sin cargas».",
+        ]
+    return resultado
+
+
 def _with_ton_m_c(model: Any, fn: Callable[[], Any]) -> Any:
     """Run ``fn`` with SAP present units forced to Ton_m_C, restoring after.
 
@@ -1371,53 +1462,30 @@ def _with_ton_m_c(model: Any, fn: Callable[[], Any]) -> Any:
             raise RuntimeError("SAP2000 present units could not be restored")
 
 
-def existing_loads(model: Any, joints: list[str]) -> list[dict[str, Any]]:
+def existing_loads(
+    model: Any, joints: list[str], errores: list[dict[str, str]] | None = None
+) -> list[dict[str, Any]]:
     """Loads already applied to ``joints``, port of cargas_nodales.py:31-71.
 
     Several ``SetLoadForce`` calls without ``Replace`` can stack multiple
     loads on the same joint/pattern/coordinate-system; those are summed, one
     row per (joint, load_pat, coord_sys), same as the original loop. Units
     are forced to Ton_m_C for the read, same as the original
-    ``_obtener_cargas_existentes_impl``.
+    ``_obtener_cargas_existentes_impl``. Con ``errores`` (lista) los nodos cuya lectura falla
+    (código de retorno distinto de 0 o respuesta inesperada) se acumulan ahí en lugar de tratarse como «sin cargas».
     """
-
-    def read() -> list[dict[str, Any]]:
-        rows: dict[tuple[str, str, str], dict[str, Any]] = {}
-        for joint in dict.fromkeys(str(j) for j in joints):
-            response = model.PointObj.GetLoadForce(joint, 0, [], [], [], [], [], [], [], [], [], [], 0)
-            for item in _parse_load_force(response):
-                key = (joint, item["load_pat"], item["coord_sys"])
-                row = rows.setdefault(
-                    key,
-                    {"joint": joint, "load_pat": item["load_pat"], "coord_sys": item["coord_sys"]}
-                    | {field: 0.0 for field in _LOAD_FIELDS},
-                )
-                for field in _LOAD_FIELDS:
-                    row[field] += item[field]
-        return list(rows.values())
-
-    return _with_ton_m_c(model, read)
+    return _with_ton_m_c(model, lambda: _cargas_nodos(model, joints, errores))
 
 
-def _existing_loads_no_units(model: Any, joints: list[str]) -> list[dict[str, Any]]:
+def _existing_loads_no_units(
+    model: Any, joints: list[str], errores: list[dict[str, str]] | None = None
+) -> list[dict[str, Any]]:
     """``existing_loads`` body without its own unit forcing/restoring.
 
     Used by ``preview_loads`` so a preview of many rows sets/restores
     Ton_m_C once instead of once per row.
     """
-    rows: dict[tuple[str, str, str], dict[str, Any]] = {}
-    for joint in dict.fromkeys(str(j) for j in joints):
-        response = model.PointObj.GetLoadForce(joint, 0, [], [], [], [], [], [], [], [], [], [], 0)
-        for item in _parse_load_force(response):
-            key = (joint, item["load_pat"], item["coord_sys"])
-            row = rows.setdefault(
-                key,
-                {"joint": joint, "load_pat": item["load_pat"], "coord_sys": item["coord_sys"]}
-                | {field: 0.0 for field in _LOAD_FIELDS},
-            )
-            for field in _LOAD_FIELDS:
-                row[field] += item[field]
-    return list(rows.values())
+    return _cargas_nodos(model, joints, errores)
 
 
 def preview_loads(model: Any, rows: list[dict[str, Any]], mode: str) -> dict[str, Any]:
@@ -1426,29 +1494,54 @@ def preview_loads(model: Any, rows: list[dict[str, Any]], mode: str) -> dict[str
     Reads the "before" state in Ton_m_C, same units as the values ``rows``
     already carry from the web UI (see ``cargasNodales.ts``), matching the
     original ``obtener_cargas_existentes`` unit forcing.
+
+    El patrón y el sistema de coordenadas se comparan sin distinguir mayúsculas ni espacios en los extremos y un
+    ``coord_sys`` vacío equivale a «Global». Cada cambio lleva, además, ``existing`` (todas las cargas actuales del nodo) y
+    ``before_status``: ``matched``, ``none`` (el nodo no tiene cargas), ``no_match`` (tiene cargas de otro patrón o sistema)
+    o ``read_error`` (no se pudieron leer; ``before`` queda ``null`` y el nodo va en ``read_errors``).
     """
 
     def build() -> dict[str, Any]:
+        errores: list[dict[str, str]] = []
+        fallidos: set[str] = set()
+        actuales: dict[str, list[dict[str, Any]]] = {}
+        for joint in dict.fromkeys(str(row["joint"]) for row in rows):
+            n_antes = len(errores)
+            actuales[joint] = _existing_loads_no_units(model, [joint], errores)
+            if len(errores) > n_antes:
+                fallidos.add(joint)
         changes = []
         for row in rows:
-            current = next(
-                (
-                    item
-                    for item in _existing_loads_no_units(model, [row["joint"]])
-                    if item["load_pat"] == row["load_pat"] and item["coord_sys"] == row["coord_sys"]
-                ),
-                None,
-            )
-            before = {field: current[field] for field in _LOAD_FIELDS} if current else None
+            joint = str(row["joint"])
+            existentes = actuales[joint]
+            coinciden = [
+                item
+                for item in existentes
+                if _clave_texto(item["load_pat"]) == _clave_texto(row["load_pat"])
+                and _clave_csys(item["coord_sys"]) == _clave_csys(row.get("coord_sys"))
+            ]
+            if coinciden:
+                before = {field: sum(item[field] for item in coinciden) for field in _LOAD_FIELDS}
+                estado = "matched"
+            else:
+                before = None
+                estado = "read_error" if joint in fallidos else ("none" if not existentes else "no_match")
             if mode == "replace":
                 after = {field: row[field] for field in _LOAD_FIELDS}
             else:
                 base = before or dict.fromkeys(_LOAD_FIELDS, 0.0)
                 after = {field: base[field] + row[field] for field in _LOAD_FIELDS}
             changes.append(
-                {"joint": row["joint"], "load_pat": row["load_pat"], "before": before, "after": after}
+                {
+                    "joint": row["joint"],
+                    "load_pat": row["load_pat"],
+                    "before": before,
+                    "after": after,
+                    "existing": [{k: v for k, v in item.items() if k != "joint"} for item in existentes],
+                    "before_status": estado,
+                }
             )
-        return {"changes": changes}
+        return _con_errores_de_lectura({"changes": changes}, errores)
 
     return _with_ton_m_c(model, build)
 
@@ -1565,6 +1658,9 @@ class LoadRow(BaseModel):
     @field_validator("coord_sys")
     @classmethod
     def coord_sys_name(cls, value: str) -> str:
+        # Un sistema de coordenadas vacío equivale a «Global» (así lo compara también el «antes» de preview).
+        if not value.strip():
+            return "Global"
         return _valid_name(value, "coordinate system")
 
     @field_validator("f1", "f2", "f3", "m1", "m2", "m3")
@@ -1755,7 +1851,12 @@ def install_routes(app: Any, session: Any, com_error: type[Exception]) -> None:
     @app.get("/v1/sap/actions/foundations/loads/existing")
     def foundations_loads_existing(joints: str):
         names = [item.strip() for item in joints.split(",") if item.strip()]
-        return call(lambda model: {"rows": existing_loads(model, names)})
+
+        def read(model: Any) -> dict[str, Any]:
+            errores: list[dict[str, str]] = []
+            return _con_errores_de_lectura({"rows": existing_loads(model, names, errores)}, errores)
+
+        return call(read)
 
     @app.post("/v1/sap/actions/foundations/loads/preview")
     def foundations_loads_preview(body: LoadsBody):

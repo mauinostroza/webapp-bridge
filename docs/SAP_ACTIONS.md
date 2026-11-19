@@ -572,6 +572,24 @@ Solo lectura; código en `bridge/viewer/foundations.py` y `bridge/viewer/routes.
   * **NO verificado con SAP2000 real:** nombres y columnas de las tres tablas, unidades de la tabla de fuerzas, si la tabla obedece la selección de `Results.Setup` o la «para mostrar», las firmas de `Get/SetLoadCasesSelectedForDisplay`, la interpretación de `GetTransformationMatrix`, la herencia de ejes en mallas automáticas y los valores de `StepType`. Los alias están al principio del módulo para ajustarlos tras la sonda sin cambiar el contrato.
 * Nombres: `joints` y `shells` son los de `PointObj` y `AreaObj`, los mismos que `nodes.ids` y `areas[].id` de `GET viewer/snapshot`. El snapshot omite (con aviso en `warnings`/`skipped`) los nudos sin coordenadas finitas y las áreas con menos de 3 puntos o con puntos omitidos, así que sus listas pueden ser un subconjunto de los nombres de SAP2000, nunca nombres distintos.
 
+## Fundaciones: cargas actuales («antes») de `foundations/loads/preview` y `loads/existing`
+
+* **Coincidencia:** el patrón (`load_pat`) y el sistema de coordenadas (`coord_sys`) se comparan sin distinguir mayúsculas ni espacios
+  en los extremos, y un `coord_sys` vacío equivale a `Global` (el cuerpo de la petición lo normaliza a `"Global"`). Antes la igualdad era
+  exacta y un `GLOBAL`, `global` o vacío dejaba `before` en `null`, que la web mostraba como 0.
+* **Campos nuevos en cada elemento de `changes`** (siempre presentes): `existing` (todas las cargas actuales del nodo, sumadas por patrón y
+  sistema como antes: `load_pat`, `coord_sys`, `f1..m3`) y `before_status`: `matched` (hay coincidencia; `before` trae los valores),
+  `none` (el nodo no tiene cargas), `no_match` (tiene cargas, pero de otro patrón o sistema de coordenadas) y `read_error` (no se pudieron
+  leer). `before` es `null` en `none`, `no_match` y `read_error`.
+* **Errores de lectura:** si `PointObj.GetLoadForce` devuelve un código distinto de 0 o una respuesta con menos de 10 arreglos, el nodo no se
+  interpreta como «sin cargas»: va en `read_errors: [{joint, message}]` al nivel superior y se avisa en `warnings`. Ambas claves aparecen solo
+  si hubo errores (en `loads/preview` y en `loads/existing`, que no cambia sus `rows`). Una respuesta de solo ceros (conteo 0 y código 0)
+  sigue siendo «sin cargas».
+* Sin cambios en `loads/apply` ni en la escritura. La lectura de las cargas de CAESAR II (`_existing_loads_no_units` sin lista de errores)
+  conserva su comportamiento tolerante.
+* Sin verificar con SAP2000 real: la forma exacta de la respuesta de `GetLoadForce` en un nodo sin cargas (se aceptan arreglos vacíos o `None`
+  con conteo y código 0).
+
 ## Str2Fund: apoyos excluidos de `str2fund/source`
 
 `source_snapshot.excluded_supports` lista solo los nodos que SÍ eran candidatos a apoyo (con restricción, o todos si

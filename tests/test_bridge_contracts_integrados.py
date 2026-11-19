@@ -141,6 +141,11 @@ RUTAS_RETIRADAS = {
 # Claves que una ruta ya existente gana de forma aditiva (el contrato previo sigue siendo un subconjunto, en el
 # mismo orden): ``cad/status`` añade ``ifc`` (docs/CAD_IFC.md).
 _REACCIONES_GLOBALES = ["reactions_frame", "joints_rotated", "joints_axes_unresolved"]
+# Claves que cada elemento de una lista de una ruta ya existente gana de forma aditiva (mismo criterio).
+ITEMS_AMPLIADOS = {
+    # Cargas actuales del nodo y estado de la coincidencia del «antes» (docs/SAP_ACTIONS.md).
+    "POST /v1/sap/actions/foundations/loads/preview": {"changes": ["existing", "before_status"]},
+}
 CLAVES_AMPLIADAS = {
     "POST /v1/sap/actions/cad/status": ["ifc"],
     # Reacciones de apoyo en ejes globales: marco de las reacciones y nodos convertidos / no resueltos.
@@ -167,11 +172,16 @@ def test_previous_contract_keys_are_intact(contracts):
     previous = {r: s for r, s in json.loads(raw)["routes"].items() if r not in RUTAS_RETIRADAS}
     for route, spec in previous.items():
         assert route in contracts, f"ruta previa eliminada: {route}"
-        if route in CLAVES_AMPLIADAS:
+        if route in CLAVES_AMPLIADAS or route in ITEMS_AMPLIADOS:
             nuevas = [
-                k for k in CLAVES_AMPLIADAS[route] if k not in spec["keys"]
+                k for k in CLAVES_AMPLIADAS.get(route, []) if k not in spec["keys"]
             ]  # ya fusionadas: no se repiten
             ampliado = {**spec, "keys": [*spec["keys"], *nuevas]}
+            if route in ITEMS_AMPLIADOS:
+                ampliado["items"] = {
+                    lista: [*claves, *[k for k in ITEMS_AMPLIADOS[route].get(lista, []) if k not in claves]]
+                    for lista, claves in spec["items"].items()
+                }
             assert contracts[route] == ampliado, f"contrato previo modificado: {route}"
             continue
         assert contracts[route] == spec, f"contrato previo modificado: {route}"
