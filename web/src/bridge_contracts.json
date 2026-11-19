@@ -63,7 +63,7 @@
     "POST /v1/sap/actions/foundations/loads/preview": {
       "keys": ["changes"],
       "items": {
-        "changes": ["joint", "load_pat", "before", "after"]
+        "changes": ["joint", "load_pat", "before", "after", "existing", "before_status"]
       }
     },
     "POST /v1/sap/actions/foundations/loads/apply": {
