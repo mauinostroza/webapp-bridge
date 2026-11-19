@@ -805,7 +805,7 @@ def test_intermediate_floor_unrestrained_is_not_support_and_is_reported():
     result = extract_source(model, [], [])
     snap = result["source_snapshot"]
     assert [s["joint"] for s in snap["available_supports"]] == ["1"]
-    assert "2" in snap["excluded_supports"]
+    assert snap["excluded_supports"] == ["9"]  # el nodo libre «2» no es candidato: no se lista como excluido
     diag = result["support_diagnostics"]
     assert diag["mode"] == "restraint"
     assert diag["excluded"] == [{"joint": "9", "reason": "no_vertical_frame"}]
@@ -1297,3 +1297,100 @@ def test_add_frame_rotates_local_axes_only_when_the_plan_asks_for_it():
     _add_frame(model, {**base, "name": "A", "rotation_deg": 0})
     _add_frame(model, {**base, "name": "B", "rotation_deg": 90})
     assert calls == [("B", 90.0)]
+
+
+# --- excluded_supports: solo candidatos que no entraron al catálogo --------------------------------------------------------
+
+_RECT = {"R": ("Rectangle", ("", "CONC", 0.4, 0.3, -1, "", "", 0))}
+
+
+def test_nodos_libres_no_aparecen_como_excluidos():
+    model = _model_with(
+        {"1": (0, 0, 0), "2": (0, 0, 3), "5": (9, 9, 0), "6": (8, 8, 0)},
+        {"C": ("1", "2", "R")},
+        _RECT,
+        {"1": RESTRAINED, "2": FREE, "5": FREE, "6": FREE},
+    )
+    result = extract_source(model, [], [])
+    assert result["source_snapshot"]["excluded_supports"] == []
+    assert result["excluded_supports_detail"] == []
+
+
+def test_apoyo_sin_columna_vertical_aparece_con_su_motivo():
+    model = _model_with(
+        {"1": (0, 0, 0), "2": (0, 0, 3), "9": (5, 5, 0), "5": (7, 7, 0)},
+        {"C": ("1", "2", "R")},
+        _RECT,
+        {"1": RESTRAINED, "2": FREE, "9": RESTRAINED, "5": FREE},
+    )
+    result = extract_source(model, [], [])
+    assert result["source_snapshot"]["excluded_supports"] == ["9"]
+    assert result["excluded_supports_detail"] == [{"joint": "9", "reason": "no_vertical_frame"}]
+
+
+def test_seccion_no_compatible_aparece_con_unsupported_section():
+    model = _model_with(
+        {"1": (0, 0, 0), "2": (0, 0, 3)},
+        {"C": ("1", "2", "WF")},
+        {"WF": ("Other", ())},
+        {"1": RESTRAINED, "2": FREE},
+    )
+    result = extract_source(model, [], [])
+    assert result["source_snapshot"]["excluded_supports"] == ["1"]
+    (detalle,) = result["excluded_supports_detail"]
+    assert detalle["joint"] == "1" and detalle["reason"] == "unsupported_section" and "WF" in detalle["detail"]
+
+
+def test_getrestraint_ilegible_en_un_nodo_aparece_como_restraint_unreadable():
+    model = _model_with(
+        {"1": (0, 0, 0), "2": (0, 0, 3), "7": (4, 4, 0)},
+        {"C": ("1", "2", "R")},
+        _RECT,
+        {"1": RESTRAINED, "2": FREE, "7": FREE},
+    )
+    original = model.PointObj.GetRestraint
+
+    def get_restraint(name):
+        if name == "7":
+            raise RuntimeError("no legible")
+        return original(name)
+
+    model.PointObj.GetRestraint = get_restraint
+    result = extract_source(model, [], [])
+    assert result["source_snapshot"]["excluded_supports"] == ["7"]
+    assert result["excluded_supports_detail"] == [{"joint": "7", "reason": "restraint_unreadable"}]
+
+
+def test_modo_geometrico_sin_restricciones_conserva_el_comportamiento_actual():
+    # Sin GetRestraint todos los nodos son candidatos: los que no entran al catálogo siguen listados como excluidos.
+    model = _model_with(
+        {"1": (0, 0, 0), "2": (0, 0, 3), "9": (5, 5, 0)},
+        {"C": ("1", "2", "R")},
+        _RECT,
+    )
+    result = extract_source(model, [], [])
+    assert result["support_diagnostics"]["mode"] == "geometric"
+    assert [s["joint"] for s in result["source_snapshot"]["available_supports"]] == ["1"]
+    assert result["source_snapshot"]["excluded_supports"] == ["2", "9"]
+    assert {d["joint"]: d["reason"] for d in result["excluded_supports_detail"]} == {
+        "2": "no_vertical_frame",
+        "9": "no_vertical_frame",
+    }
+
+
+def test_el_detalle_no_cambia_el_hash_de_source_snapshot():
+    model = _model_with(
+        {"1": (0, 0, 0), "2": (0, 0, 3), "9": (5, 5, 0)},
+        {"C": ("1", "2", "R")},
+        _RECT,
+        {"1": RESTRAINED, "2": FREE, "9": RESTRAINED},
+    )
+    result = extract_source(model, [], [])
+    assert "excluded_supports_detail" not in result["source_snapshot"]  # fuera del snapshot
+    modelo = dict(result["source_snapshot"]["model"])
+    sin_hash = {**result["source_snapshot"], "model": {k: v for k, v in modelo.items() if k != "hash"}}
+    from bridge.str2fund import _stable_hash
+
+    assert modelo["hash"] == _stable_hash(sin_hash)
+    otra = extract_source(model, [], [])
+    assert otra["source_snapshot"]["model"]["hash"] == modelo["hash"]  # estable entre lecturas

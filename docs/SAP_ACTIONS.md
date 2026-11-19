@@ -572,6 +572,15 @@ Solo lectura; código en `bridge/viewer/foundations.py` y `bridge/viewer/routes.
   * **NO verificado con SAP2000 real:** nombres y columnas de las tres tablas, unidades de la tabla de fuerzas, si la tabla obedece la selección de `Results.Setup` o la «para mostrar», las firmas de `Get/SetLoadCasesSelectedForDisplay`, la interpretación de `GetTransformationMatrix`, la herencia de ejes en mallas automáticas y los valores de `StepType`. Los alias están al principio del módulo para ajustarlos tras la sonda sin cambiar el contrato.
 * Nombres: `joints` y `shells` son los de `PointObj` y `AreaObj`, los mismos que `nodes.ids` y `areas[].id` de `GET viewer/snapshot`. El snapshot omite (con aviso en `warnings`/`skipped`) los nudos sin coordenadas finitas y las áreas con menos de 3 puntos o con puntos omitidos, así que sus listas pueden ser un subconjunto de los nombres de SAP2000, nunca nombres distintos.
 
+## Str2Fund: apoyos excluidos de `str2fund/source`
+
+`source_snapshot.excluded_supports` lista solo los nodos que SÍ eran candidatos a apoyo (con restricción, o todos si
+`GetRestraint` no está disponible y el modo es geométrico) y no entraron al catálogo. Los nodos libres (sin restricción) no
+entregan reacciones y no aparecen nunca. Sale de `support_diagnostics["excluded"]`, la misma lógica de `_support_catalog`.
+La respuesta añade, FUERA de `source_snapshot` (su hash estable no cambia por el detalle), `excluded_supports_detail`:
+`[{joint, reason, detail?}]` con `reason` = `restraint_unreadable`, `unsupported_section` (`detail` con las barras y secciones) o
+`no_vertical_frame`. El catálogo, las reacciones y el resto de las rutas no cambian. Sin verificar con SAP2000 real.
+
 ## Reacciones de apoyo en ejes globales
 
 `Results.JointReact` entrega fuerzas y momentos en el sistema local del nodo (según la documentación OAPI; no verificado con un
