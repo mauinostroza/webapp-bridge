@@ -698,6 +698,21 @@
         "groups": ["name", "joints", "shells"]
       }
     },
+    "POST /v1/sap/actions/viewer/foundations/shell-forces": {
+      "keys": [
+        "ok",
+        "units",
+        "model_locked",
+        "truncated",
+        "warnings",
+        "mesh_hash",
+        "elements",
+        "nodes",
+        "axes",
+        "columns",
+        "rows"
+      ]
+    },
     "POST /v1/sap/actions/viewer/foundations/results": {
       "keys": [
         "units",

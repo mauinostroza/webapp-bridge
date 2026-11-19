@@ -19,13 +19,14 @@ from __future__ import annotations
 import atexit
 import threading
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse, Response
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from bridge.viewer import foundations as fund
+from bridge.viewer import shell_forces as sf
 from bridge.viewer.core import results as res
 from bridge.viewer.core import results_bulk as bulk
 from bridge.viewer.core.bridge import BridgeError, LocalBridge
@@ -59,6 +60,27 @@ class FoundationGroup(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     joints: list[str] = Field(default_factory=list, max_length=20_000)
     shells: list[str] = Field(default_factory=list, max_length=20_000)
+
+
+class ShellForcesRequest(BaseModel):
+    """Cuerpo de ``foundations/shell-forces``: áreas (vacío = todas), casos/combinaciones y componentes."""
+
+    model_config = ConfigDict(extra="forbid")
+    areas: list[Annotated[str, Field(min_length=1, max_length=200)]] = Field(default_factory=list, max_length=20_000)
+    cases: list[str] | None = Field(default=None, max_length=500)
+    combos: list[str] | None = Field(default=None, max_length=500)
+    components: list[str] | None = None
+    include_axes: bool = True
+    max_elements: int = Field(default=20_000, ge=1, le=200_000)
+
+    @field_validator("components")
+    @classmethod
+    def componentes_validos(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return value
+        if not value or len(set(value)) != len(value) or any(c not in sf.COMPONENTES for c in value):
+            raise ValueError(f"components debe ser un subconjunto no vacío y sin repetir de {list(sf.COMPONENTES)}")
+        return value
 
 
 class FoundationResultsRequest(BaseModel):
@@ -237,6 +259,11 @@ def install_routes(app: Any) -> None:
         return sin_cache(
             await en_com_sap(lambda c: fund.resultados(c.model, grupos, body.cases, body.combos))
         )
+
+    @app.post(f"{PREFIJO}/foundations/shell-forces")
+    async def foundations_shell_forces(body: ShellForcesRequest):
+        """Esfuerzos de shell por esquina de elemento, malla 3D y ejes locales (solo lectura, Ton_m_C)."""
+        return sin_cache(await en_com_sap(lambda c: sf.shell_forces(c.model, body.model_dump())))
 
     # --- Resultados en bloque (solo lectura; ver core/results_bulk.py) ---------------
     @app.get(f"{PREFIJO}/results/reactions")

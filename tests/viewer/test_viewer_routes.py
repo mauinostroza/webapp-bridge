@@ -43,6 +43,7 @@ RUTAS_ESPERADAS = {
     # Fundaciones SAP2000 (bridge/viewer/foundations.py).
     ("GET", "foundations/groups"),
     ("POST", "foundations/results"),
+    ("POST", "foundations/shell-forces"),
 }
 
 

@@ -2659,3 +2659,23 @@ Antes de la validación manual de esta sección, ejecute `scripts/sonda_acero_ai
 modelos de solución teórica las hipótesis de `bridge/acero_aisc360_fuerzas.py` (EJE_FUERTE, signo de P, Cb) y de
 `bridge/acero_aisc360_enviar.py` (secciones, asignación, bloqueo). Instrucciones, veredictos y tabla de cambios:
 `docs/SONDA_ACERO_AISC360.md`. Validada con SAP2000 23.3.1 (sonda v3, 2026-10-14): 22 PASS, 3 INCONCLUSO (D2 y A4 informativos; F2 pendiente de la firma de `SetOutputStations`).
+
+## Viewer: esfuerzos de shell por esquina (`viewer/foundations/shell-forces`)
+
+Con SAP2000 real y un modelo con una losa de 6 × 4 m mallada a 0,5 m, analizado (bloqueado):
+
+1. Anote la selección de salida y las unidades del usuario. Llame a `POST viewer/foundations/shell-forces` con `{}`.
+   Comprueba: 96 elementos de 4 nudos, `nodes` en m, `axes` con `v3 = ±Z`, filas para cada caso y combinación (`Max`/`Min` en
+   la envolvente), `units` tonf/m y `warnings` sin respaldos inesperados.
+2. Al terminar, comprueba que SAP2000 sigue con las mismas unidades y casos marcados para salida, y que el modelo sigue
+   bloqueado con sus resultados.
+3. Repite con `include_axes: false` y con `components: ["M11", "M22"]`.
+4. Modelo sin analizar: debe responder `409 model_not_run` sin cambiar nada.
+5. Con 10 000 elementos y una combinación, anote el tiempo de respuesta (objetivo orientativo < 15 s sin ejes): ______.
+6. Anote qué `warnings` aparecen (vía de lectura usada, ejes derivados): esos datos ajustan los alias y la interpretación de
+   la matriz de ejes.
+
+- ☐ Pasó
+- ☐ Falló
+
+Observaciones: ____________________
