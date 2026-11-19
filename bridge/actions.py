@@ -359,6 +359,23 @@ def log_profile_diagnostics_if_no_materials(model: Any, materials: list[str]) ->
         logger.warning("[DIAG] no se pudo diagnosticar: %s", exc)
 
 
+def seleccion_tipos_nombres(raw: Any) -> tuple[Any, Any] | None:
+    """(tipos, nombres) de un ``SelectObj.GetSelected``; ``None`` si no hay nada seleccionado.
+
+    Sin selección, pywin32 devuelve ``None`` o arreglos vacíos en lugar de los de tipos y nombres: eso es una selección vacía, no una respuesta inesperada. Con el retorno al inicio
+    (ret, n, types, names) ``names`` es el último elemento; con el código al final, el penúltimo.
+    """
+    arrays = [() if item is None else item for item in raw if item is None or isinstance(item, (list, tuple))]
+    if not arrays or all(len(a) == 0 for a in arrays):
+        return None
+    if len(arrays) < 2:
+        raise RuntimeError("Unexpected SAP2000 response from SelectObj.GetSelected")
+    types, names = arrays[-2], arrays[-1]
+    if len(types) != len(names):
+        raise RuntimeError("SAP2000 SelectObj.GetSelected returned mismatched arrays")
+    return types, names
+
+
 def selected_frames(model: Any) -> list[dict[str, str]]:
     """Return only selected frame objects and their assigned section.
 
@@ -367,14 +384,13 @@ def selected_frames(model: Any) -> list[dict[str, str]]:
     documented ``FrameObj.GetSection`` call.
     """
     raw = model.SelectObj.GetSelected()
-    if not isinstance(raw, tuple) or len(raw) < 4:
+    if not isinstance(raw, tuple):
         raise RuntimeError("Unexpected SAP2000 response from SelectObj.GetSelected")
     _ret(raw, "SelectObj.GetSelected")
-    # Se miran todos los elementos: con el retorno al inicio (ret, n, types, names) el último es ``names``.
-    arrays = [item for item in raw if isinstance(item, (list, tuple))]
-    if len(arrays) < 2:
-        raise RuntimeError("Unexpected SAP2000 response from SelectObj.GetSelected")
-    types, names = arrays[-2], arrays[-1]
+    parsed = seleccion_tipos_nombres(raw)
+    if parsed is None:
+        return []
+    types, names = parsed
     if len(types) != len(names):
         raise RuntimeError("SAP2000 SelectObj.GetSelected returned mismatched arrays")
     result: list[dict[str, str]] = []
