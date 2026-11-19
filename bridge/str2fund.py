@@ -16,6 +16,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from bridge.actions import _call_get_coord_cartesian, _get_name_list, _ret
+from bridge.reacciones_globales import reacciones_a_globales
 
 
 class Str2FundError(RuntimeError):
@@ -819,6 +820,8 @@ def extract_source(model: Any, supports: list[str], cases: list[str]) -> dict[st
         if requested_supports and requested_cases:
             _set_selection(model, requested_cases, [])
             reactions = _case_reactions(model, requested_supports, requested_cases)
+        # Results.JointReact entrega los ejes locales del nodo: los apoyos girados se llevan a globales.
+        conversion = reacciones_a_globales(model, reactions)
         version = None
         try:
             raw_version = model.GetVersion()
@@ -838,10 +841,12 @@ def extract_source(model: Any, supports: list[str], cases: list[str]) -> dict[st
             "materials": _source_materials(model),
         }
         source["model"]["hash"] = _stable_hash(source)
-        result: dict[str, Any] = {"source_snapshot": source}
+        result: dict[str, Any] = {"source_snapshot": source, **conversion.campos()}
+        if conversion.warnings:
+            result["warnings"] = list(conversion.warnings)
         if previous_unknown:
             # Outside source_snapshot so the stable hash does not change.
-            result["warnings"] = [_selection_warning(previous_unknown)]
+            result.setdefault("warnings", []).append(_selection_warning(previous_unknown))
         # Diagnostics live outside source_snapshot so the stable hash is unchanged.
         result["support_diagnostics"] = support_diag
         notes = _support_notes(support_diag, bool(catalog))

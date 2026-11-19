@@ -4,6 +4,7 @@ import types
 
 import pytest
 
+from bridge import reacciones_globales
 from bridge.str2fund import (
     Str2FundError,
     _add_area,
@@ -14,6 +15,14 @@ from bridge.str2fund import (
     preview_target,
     update_target_loads,
 )
+
+
+@pytest.fixture(autouse=True)
+def _apoyos_sin_giro(monkeypatch):
+    """Los COM falsos de este archivo no definen ``PointObj.GetLocalAxes``: sus apoyos se leen como sin giro."""
+    monkeypatch.setattr(
+        reacciones_globales, "leer_ejes_nodo", lambda model, nodo: reacciones_globales.EjesNodo("sin_giro")
+    )
 
 
 def test_csi_add_calls_put_requested_names_in_username_argument():

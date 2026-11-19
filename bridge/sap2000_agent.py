@@ -29,6 +29,7 @@ from bridge.actions import select_all_cases_for_output as _select_all_cases_for_
 from bridge.alcances import ruta_permitida
 from bridge.com_tiempo import limite as com_limite
 from bridge.hosted import FUSION_ORIGIN, HOSTED_ORIGIN, SHARED_APP_ORIGINS
+from bridge.reacciones_globales import reacciones_a_globales
 from bridge.seleccion_salida import con_avisos, preserve_output_selection
 
 
@@ -858,10 +859,13 @@ def _leer_snapshot(
         if shells is not None:
             wanted = {str(shell) for shell in shells}
             pressures = [row for row in pressures if row["shell"] in wanted]
+    reacciones = _joint_result_rows(model, "JointReact", names)
+    # Results.JointReact entrega los ejes locales del nodo: los apoyos girados se llevan a globales.
+    conversion = reacciones_a_globales(model, reacciones)
     return {
         "model": {"path": str(model.GetModelFilename() or ""), "units": unit_name},
         "coordinates": _coordinates(model, names),
-        "reactions": _joint_result_rows(model, "JointReact", names),
+        "reactions": reacciones,
         "displacements": _joint_result_rows(model, "JointDispl", names),
         "soil_pressures": pressures,
         "groups": resolved_groups,
@@ -869,6 +873,8 @@ def _leer_snapshot(
         # lets the web show the desktop's literal "modelo no corrido"
         # message instead of a generic empty-results one.
         "model_locked": _model_is_locked(model),
+        **conversion.campos(),
+        **({"warnings": list(conversion.warnings)} if conversion.warnings else {}),
     }
 
 

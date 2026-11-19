@@ -2679,3 +2679,19 @@ Con SAP2000 real y un modelo con una losa de 6 × 4 m mallada a 0,5 m, analizado
 - ☐ Falló
 
 Observaciones: ____________________
+
+## Reacciones de apoyo en ejes globales (`reacciones_globales`)
+
+Con SAP2000 real y un modelo con un apoyo cuyos ejes locales están girados 30° (a = 30°) con una carga horizontal conocida:
+
+1. Analice el modelo. Anote la tabla «Joint Reactions» en ejes globales (Display > Show Tables) del apoyo girado y de uno sin giro.
+2. Llame a `POST zapata-biaxial/reacciones`, `POST str2fund/source` y `POST viewer/foundations/results` con el apoyo girado.
+3. Compruebe que `reactions_frame` es `"global"` y `joints_rotated` lista el apoyo girado; que `Vx`, `Vy` (o `f1`, `f2`) coinciden con la tabla en
+   globales y que el apoyo sin giro no cambia.
+4. Repita con b ≠ 0 y c ≠ 0 en el mismo apoyo para validar el orden y el signo de las rotaciones (`matriz_local_a_global`).
+5. Un apoyo con ejes avanzados debe salir en `joints_axes_unresolved`, con las filas sin tocar.
+
+- ☐ Pasó
+- ☐ Falló
+
+Observaciones (¿hubo que cambiar la convención?): ____________________

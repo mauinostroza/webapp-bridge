@@ -572,6 +572,31 @@ Solo lectura; código en `bridge/viewer/foundations.py` y `bridge/viewer/routes.
   * **NO verificado con SAP2000 real:** nombres y columnas de las tres tablas, unidades de la tabla de fuerzas, si la tabla obedece la selección de `Results.Setup` o la «para mostrar», las firmas de `Get/SetLoadCasesSelectedForDisplay`, la interpretación de `GetTransformationMatrix`, la herencia de ejes en mallas automáticas y los valores de `StepType`. Los alias están al principio del módulo para ajustarlos tras la sonda sin cambiar el contrato.
 * Nombres: `joints` y `shells` son los de `PointObj` y `AreaObj`, los mismos que `nodes.ids` y `areas[].id` de `GET viewer/snapshot`. El snapshot omite (con aviso en `warnings`/`skipped`) los nudos sin coordenadas finitas y las áreas con menos de 3 puntos o con puntos omitidos, así que sus listas pueden ser un subconjunto de los nombres de SAP2000, nunca nombres distintos.
 
+## Reacciones de apoyo en ejes globales
+
+`Results.JointReact` entrega fuerzas y momentos en el sistema local del nodo (según la documentación OAPI; no verificado con un
+apoyo girado) y el Workbench asume ejes globales. `bridge/reacciones_globales.py::reacciones_a_globales` convierte las filas de
+los nodos con ejes locales girados y la usan `str2fund/source`, `zapata-biaxial/reacciones`, `POST /v1/sap/snapshot` y
+`viewer/foundations/results`.
+
+* **Por nodo** se lee `PointObj.GetLocalAxes` (ángulos a, b, c y la bandera `Advanced`), solo de los nodos que tienen filas.
+  Sin giro (`Advanced` falso y los tres ángulos ≈ 0, tolerancia 1e-6°): no se toca nada. Con giro: `F1..F3` y `M1..M3` pasan a
+  globales con la matriz de rotación del nodo. Con ejes avanzados o no legibles: no se adivina; las filas quedan como las
+  devuelve SAP2000 y el nodo se lista como no resuelto.
+* **Convención** (aislada en `matriz_local_a_global`, **pendiente de verificar con la sonda**): `a` alrededor del eje 3, luego `b`
+  alrededor del nuevo eje 2 y `c` alrededor del nuevo eje 1; `R = Rz(a)·Ry(b)·Rx(c)` y `global = R · local`.
+* **Campos nuevos** (aditivos; siempre presentes en las cuatro rutas): `reactions_frame` (`"global"`), `joints_rotated` (nodos
+  convertidos) y `joints_axes_unresolved` (nodos que quedan en ejes locales). Los avisos van en `warnings` (en `str2fund/source`
+  y `viewer/foundations/results` ya existía; en `/v1/sap/snapshot` aparece solo si hay avisos; `zapata-biaxial/reacciones` gana
+  `warnings` y mantiene `avisos` y `nodos_ejes_locales`). Estas claves están registradas como ampliación en
+  `tests/test_bridge_contracts_integrados.py::CLAVES_AMPLIADAS`; en `str2fund/source` van fuera de `source_snapshot`, así que su
+  hash no cambia salvo que haya nodos girados.
+* **Casos espectrales** (`StepType` Max/Min): se convierten igual, componente a componente, y un aviso lo dice: rotar máximos
+  modales no es exacto; la web aplica después su corrección de signo.
+* **No cubierto:** `viewer/results/reactions` (lectura en bloque del visor) y `placa-base/reacciones` siguen devolviendo lo que
+  entrega `Results.JointReact`.
+* **No verificado con SAP2000 real:** que `JointReact` entregue los ejes locales del nodo y la convención de a, b y c.
+
 ## Acero AISC 360-22: fuerzas de barras y demandas de diseño (validado con SAP2000 23.3.1, sonda v3)
 
 Código: `bridge/acero_aisc360_fuerzas.py` (instalado desde `bridge.actions.install_routes`, mismo envoltorio `call`). Tests: `tests/test_bridge_acero_fuerzas.py` (COM falso). Claves en `web/src/bridge_contracts.json`. Cliente web: `web/src/acero_aisc360/sapFuerzas.ts` (sin conectar a la interfaz).
