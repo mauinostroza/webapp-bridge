@@ -837,11 +837,18 @@ def extract_source(model: Any, supports: list[str], cases: list[str]) -> dict[st
             "cases": [case_map[name] for name in requested_cases] if requested_cases else metadata,
             "reactions": reactions,
             "available_supports": catalog,
-            "excluded_supports": sorted(set(all_nodes) - set(by_name)),
+            # Solo candidatos que no entraron al catálogo (nunca los nodos libres): salen de la misma lógica de
+            # ``_support_catalog`` (``support_diag["excluded"]``), sin recalcular distinto.
+            "excluded_supports": sorted(item["joint"] for item in support_diag.get("excluded", [])),
             "materials": _source_materials(model),
         }
         source["model"]["hash"] = _stable_hash(source)
-        result: dict[str, Any] = {"source_snapshot": source, **conversion.campos()}
+        # Fuera de source_snapshot para no cambiar su hash: motivo de cada nodo excluido (``reason``, ``detail?``).
+        result: dict[str, Any] = {
+            "source_snapshot": source,
+            "excluded_supports_detail": [dict(item) for item in support_diag.get("excluded", [])],
+            **conversion.campos(),
+        }
         if conversion.warnings:
             result["warnings"] = list(conversion.warnings)
         if previous_unknown:
