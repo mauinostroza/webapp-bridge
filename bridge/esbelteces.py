@@ -20,7 +20,14 @@ from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
-from bridge.actions import _get_name_list, _ret, _valid_name, group_members, model_is_locked
+from bridge.actions import (
+    _get_name_list,
+    _ret,
+    _valid_name,
+    group_members,
+    model_is_locked,
+    seleccion_tipos_nombres,
+)
 
 N_MM_C = 9  # eUnits.N_mm_C: longitudes en mm, esfuerzos en MPa.
 
@@ -377,15 +384,10 @@ def _selected_frame_names(model: Any) -> list[str]:
     if not isinstance(raw, (list, tuple)):
         raise RuntimeError("Unexpected SAP2000 response from SelectObj.GetSelected")
     _ret(raw, "SelectObj.GetSelected")
-    # Con el código de retorno al final los arreglos son (types, names) antes de él; con el
-    # retorno al inicio (pywin32: ret, n, types, names) ``names`` es el último elemento.
-    # Por eso se miran todos los elementos, no sólo ``raw[:-1]``.
-    arrays = [item for item in raw if isinstance(item, (list, tuple))]
-    if len(arrays) < 2:
-        raise RuntimeError("Unexpected SAP2000 response from SelectObj.GetSelected")
-    types, names = arrays[-2], arrays[-1]
-    if len(types) != len(names):
-        raise RuntimeError("SAP2000 SelectObj.GetSelected returned mismatched arrays")
+    parsed = seleccion_tipos_nombres(raw)
+    if parsed is None:
+        return []
+    types, names = parsed
     return [str(name) for object_type, name in zip(types, names) if int(object_type) == 2]
 
 

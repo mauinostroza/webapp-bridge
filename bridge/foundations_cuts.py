@@ -270,10 +270,14 @@ def listar_section_cuts(model: Any) -> list[dict[str, str]]:
     return cuts
 
 
-def _escribir_definicion_section_cut(model: Any, nombre: str, nombre_grupo: str) -> None:
-    """Agrega una fila a "Section Cut Definitions" (defined by group, resultados
-    de análisis) y la aplica. Port literal de ``_escribir_definicion_section_cut``;
-    los campos no reconocidos se dejan vacíos para que SAP2000 aplique su default."""
+def _preparar_tabla_section_cuts(
+    model: Any, nombre_grupo: str
+) -> tuple[list[str], list[list[str]], int, int]:
+    """Lee "Section Cut Definitions" y comprueba que se puede escribir (campos y columnas de nombre/grupo).
+
+    Es de solo lectura: se llama ANTES de desbloquear el modelo, para no borrar los resultados del análisis si luego no se
+    puede definir el section cut.
+    """
     try:
         ret = _llamar_get_table_editing(model, TABLA_SECTION_CUTS)
     except Exception as e:
@@ -308,6 +312,15 @@ def _escribir_definicion_section_cut(model: Any, nombre: str, nombre_grupo: str)
             f"Cut > Defined by Group, grupo '{nombre_grupo}') y luego usa "
             '"Importar section cuts desde SAP2000...".'
         )
+
+    return campos, filas, idx_nombre, idx_grupo
+
+
+def _escribir_definicion_section_cut(model: Any, nombre: str, nombre_grupo: str) -> None:
+    """Agrega una fila a "Section Cut Definitions" (defined by group, resultados
+    de análisis) y la aplica. Port literal de ``_escribir_definicion_section_cut``;
+    los campos no reconocidos se dejan vacíos para que SAP2000 aplique su default."""
+    campos, filas, idx_nombre, idx_grupo = _preparar_tabla_section_cuts(model, nombre_grupo)
 
     valores_por_indice: dict[int, str] = {idx_nombre: nombre, idx_grupo: nombre_grupo}
     idx_definido_por = _indice_campo(campos, ALIAS_CAMPO_DEFINIDO_POR)
@@ -400,6 +413,8 @@ def crear_section_cut(
                 elementos=elementos,
             )
         if not dry_run:
+            # Antes de desbloquear (lo que borra los resultados) se comprueba que la tabla admite el section cut.
+            _preparar_tabla_section_cuts(model, grupo_final)
             try:
                 model.SetModelIsLocked(False)
             except Exception as e:

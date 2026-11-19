@@ -1876,3 +1876,11 @@ def test_loads_body_acepta_mas_de_500_filas_y_rechaza_el_exceso():
     assert len(LoadsBody(rows=[fila] * 1200, mode="add").rows) == 1200
     with pytest.raises(ValidationError):
         LoadsBody(rows=[fila] * (_MAX_LOAD_ROWS + 1), mode="add")
+
+
+@pytest.mark.parametrize("vacio", [(0, 0, None, None), (0, 0, (), ()), (0, None, None, 0)])
+def test_selected_frames_sin_seleccion_devuelve_lista_vacia(vacio):
+    # SelectObj.GetSelected sin selección: pywin32 devuelve None o arreglos vacíos, no es una respuesta inesperada.
+    model = Model()
+    model.SelectObj.GetSelected = lambda *_a: vacio
+    assert selected_frames(model) == []

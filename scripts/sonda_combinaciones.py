@@ -7,7 +7,7 @@ los de SAP2000: además de llamar a las rutas del puente, ejecuta pruebas de con
 analizar, cambiar la selección de salida, ``RespCombo.Add/Delete``, diseño...).
 
 Requisitos: el entorno de Python debe tener las dependencias del puente
-(``py -3.12 -m pip install -r backend\\requirements.txt pywin32 httpx``).
+(``py -3.12 -m pip install -r backend\\requirements.txt pywin32 comtypes``).
 
 Uso (PowerShell, Windows, SAP2000 abierto con el modelo problemático, idealmente con análisis corrido y bloqueado):
 
@@ -585,7 +585,7 @@ def pruebas_puente_ampliadas(s: Sonda, fase: str) -> None:
     c = s.contexto
     ej = s.ejecutar
     V = f"{P}/viewer"
-    ej(fase, "viewer/connect", lambda: s.http("POST", f"{V}/connect", {}))
+    ej(fase, "viewer/connect", lambda: s.http("POST", f"{V}/connect", {"mode": "sap2000"}))
     for ruta in (
         "status",
         "results/cases",
@@ -599,8 +599,12 @@ def pruebas_puente_ampliadas(s: Sonda, fase: str) -> None:
         "sections/props",
     ):
         ej(fase, f"GET viewer/{ruta}", lambda r=ruta: s.http("GET", f"{V}/{r}"))
-    if c["marco"]:
-        ej(fase, "GET viewer/results/frame", lambda: s.http("GET", f"{V}/results/frame/{c['marco']}"))
+    if c["caso"]:
+        q = f"?case={c['caso']}"
+        ej(fase, "GET viewer/results/reactions", lambda: s.http("GET", f"{V}/results/reactions{q}"))
+        ej(fase, "GET viewer/results/frames", lambda: s.http("GET", f"{V}/results/frames{q}"))
+        if c["marco"]:
+            ej(fase, "GET viewer/results/frame", lambda: s.http("GET", f"{V}/results/frame/{c['marco']}{q}"))
     ej(fase, "GET viewer/snapshot", lambda: s.http("GET", f"{V}/snapshot"))
     ej(fase, "GET foundations/section-cuts", lambda: s.http("GET", f"{P}/foundations/section-cuts"))
     ej(
@@ -839,7 +843,7 @@ def main(argv: list[str] | None = None) -> int:
     except ImportError as exc:
         print(
             f"Faltan dependencias del puente ({exc}). Instálelas en este entorno y vuelva a ejecutar:\n"
-            "    py -3.12 -m pip install -r backend\\requirements.txt pywin32 httpx"
+            "    py -3.12 -m pip install -r backend\\requirements.txt pywin32 comtypes"
         )
         return 2
     except Exception as exc:  # noqa: BLE001

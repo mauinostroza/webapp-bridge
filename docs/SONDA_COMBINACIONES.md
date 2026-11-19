@@ -6,7 +6,7 @@ combinaciones. Se ejecuta en el PC del usuario, con SAP2000 abierto, y trabaja *
 Requiere las dependencias del puente en el entorno de Python:
 
 ```powershell
-py -3.12 -m pip install -r backend\requirements.txt pywin32 httpx
+py -3.12 -m pip install -r backend\requirements.txt pywin32 comtypes
 ```
 
 ```powershell

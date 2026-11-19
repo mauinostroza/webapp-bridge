@@ -369,3 +369,14 @@ def test_extract_forces_empty_result_is_not_an_error():
 def test_extract_forces_validates_body():
     r = _client(_Model()).post(f"{P}/forces", json={"cuts": [], "combos": []})
     assert r.status_code == 422
+
+
+def test_tabla_sin_campos_no_desbloquea_ni_borra_resultados():
+    # El hallazgo de la sonda: se desbloqueaba (borrando los resultados) y luego fallaba por la tabla.
+    model = _Model(locked=True, db=_Db(campos=()))
+    client = _client(model)
+    r = client.post(
+        f"{P}/apply", json={"nombre": "SC_001", "frames": ["F1"], "confirmed": True, "desbloquear": True}
+    )
+    assert r.status_code == 409
+    assert model.locked is True and model.DatabaseTables.set_calls == []
