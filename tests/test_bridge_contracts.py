@@ -125,6 +125,9 @@ class _PointObj:
     _coords = {"J1": (0.0, 0.0, 0.0), "J2": (1.0, 0.0, 0.0)}
     _loads: dict[str, list] = {}
 
+    def GetLocalAxes(self, name, *_args):  # ejes locales sin giro: las reacciones no se convierten
+        return (0.0, 0.0, 0.0, False, 0)
+
     def GetCoordCartesian(self, name, *_args):
         x, y, z = self._coords.get(name, (0.0, 0.0, 0.0))
         return (0, x, y, z)
@@ -632,6 +635,7 @@ def test_snapshot_shape(monkeypatch, contracts):
                 {
                     "GetNameList": lambda self: (0, 1, ("1",)),
                     "GetCoordCartesian": lambda self, n: (0, 0.0, 0.0, 0.0),
+                    "GetLocalAxes": lambda self, n: (0.0, 0.0, 0.0, False, 0),
                 },
             )()
             self.Results = Results()

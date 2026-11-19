@@ -48,6 +48,7 @@ from bridge import placa_base as pb
 from bridge import str2fund as sf
 from bridge.actions import _get_name_list, _parse_get_selected, _ret, _valid_combo_name, _valid_name
 from bridge.com_orden import normalizar
+from bridge.reacciones_globales import TOL_ANGULO_DEG, leer_ejes_nodo, reacciones_a_globales
 
 MAX_NODOS_LECTURA = 500
 MAX_FILAS_REACCIONES = 50_000
@@ -87,7 +88,7 @@ _TIPOS_CASO = {
     13: "LinStatMultiStep",
     14: "HyperStatic",
 }
-_TOL_ANGULO_DEG = 1e-6
+_TOL_ANGULO_DEG = TOL_ANGULO_DEG
 
 
 class ZapataBiaxialError(RuntimeError):
@@ -131,15 +132,8 @@ def _tipo_de_caso(model: Any, nombre: str) -> str | None:
 
 def _ejes_locales_girados(model: Any, nodo: str) -> bool | None:
     """``True`` si el nodo tiene ejes locales girados (o avanzados); ``None`` si no se pudieron leer."""
-    try:
-        salidas = pb._salida(model.PointObj.GetLocalAxes(nodo), f"PointObj.GetLocalAxes({nodo!r})")
-    except Exception:
-        return None
-    angulos = [float(x) for x in salidas if pb._es_numero(x)]
-    avanzado = any(x is True for x in salidas)
-    if len(angulos) < 3:
-        return None
-    return avanzado or any(abs(a) > _TOL_ANGULO_DEG for a in angulos[:3])
+    ejes = leer_ejes_nodo(model, nodo)
+    return None if ejes.estado == "ilegible" else ejes.estado in ("girado", "avanzado")
 
 
 @contextmanager
@@ -298,56 +292,59 @@ def reacciones(
     avisos: list[str] = list(avisos_nodos)
     tipos: dict[str, str] = {}
     sin_tipo: set[str] = set()
-    girados: list[str] = []
     with (
         _seleccion_de_salida_acotada(model, list(casos_), list(combinaciones), avisos),
         pb._unidades_tonf_m(model),
     ):
+        crudas: list[dict[str, Any]] = []
         for nodo in dict.fromkeys(nodos_):
-            if _ejes_locales_girados(model, nodo):
-                girados.append(nodo)
-            for r in pb._reacciones_de_nodo(model, nodo):
-                nombre = r["load_name"]
-                if nombre not in tipos:
-                    if nombre in combos:
-                        tipos[nombre] = "Combination"
-                    else:
-                        tipo = _tipo_de_caso(model, nombre)
-                        if tipo is None:
-                            sin_tipo.add(nombre)
-                        tipos[nombre] = tipo or ""
-                filas.append(
-                    [
-                        r["node"],
-                        nombre,
-                        "Combination" if nombre in combos else "LoadCase",
-                        r["step_type"],
-                        r["Vx"],
-                        r["Vy"],
-                        r["P"],
-                        r["Mx"],
-                        r["My"],
-                        r["Mz"],
-                        r["step_num"],
-                        tipos[nombre],
-                    ]
+            crudas.extend(pb._reacciones_de_nodo(model, nodo))
+            if len(crudas) > MAX_FILAS_REACCIONES:
+                raise ZapataBiaxialError(
+                    f"Más de {MAX_FILAS_REACCIONES} filas de reacciones; reduzca nodos o casos.",
+                    code="demasiadas_filas",
                 )
-                if len(filas) > MAX_FILAS_REACCIONES:
-                    raise ZapataBiaxialError(
-                        f"Más de {MAX_FILAS_REACCIONES} filas de reacciones; reduzca nodos o casos.",
-                        code="demasiadas_filas",
-                    )
+        # Results.JointReact entrega los ejes locales del nodo: los apoyos girados se llevan a globales.
+        conversion = reacciones_a_globales(
+            model,
+            crudas,
+            clave_nodo="node",
+            claves_fuerza=("Vx", "Vy", "P"),
+            claves_momento=("Mx", "My", "Mz"),
+        )
+        for r in crudas:
+            nombre = r["load_name"]
+            if nombre not in tipos:
+                if nombre in combos:
+                    tipos[nombre] = "Combination"
+                else:
+                    tipo = _tipo_de_caso(model, nombre)
+                    if tipo is None:
+                        sin_tipo.add(nombre)
+                    tipos[nombre] = tipo or ""
+            filas.append(
+                [
+                    r["node"],
+                    nombre,
+                    "Combination" if nombre in combos else "LoadCase",
+                    r["step_type"],
+                    r["Vx"],
+                    r["Vy"],
+                    r["P"],
+                    r["Mx"],
+                    r["My"],
+                    r["Mz"],
+                    r["step_num"],
+                    tipos[nombre],
+                ]
+            )
     if sin_tipo:
         avisos.append(
             "SAP2000 no informó el tipo de algunos casos (CaseTypeSap queda vacío): "
             + ", ".join(sorted(sin_tipo)[:5])
             + "."
         )
-    if girados:
-        avisos.append(
-            "Nodos con ejes locales girados: " + ", ".join(girados[:10]) + ". Las reacciones se entregan "
-            "tal como las devuelve Results.JointReact; confirme con la sonda si vienen en ejes globales."
-        )
+    avisos.extend(conversion.warnings)
     if not filas:
         raise ZapataBiaxialError(
             "SAP2000 no devolvió reacciones. Ejecute el análisis y revise la selección de resultados.",
@@ -365,8 +362,11 @@ def reacciones(
         salida["nodos"] = list(dict.fromkeys(nodos_))
     if avisos:
         salida["avisos"] = avisos
-    if girados:
-        salida["nodos_ejes_locales"] = girados
+    # Aditivos: marco de las reacciones y nodos convertidos / no resueltos (``warnings`` repite ``avisos``).
+    salida.update(conversion.campos())
+    if conversion.joints_rotated:
+        salida["nodos_ejes_locales"] = list(conversion.joints_rotated)
+    salida["warnings"] = list(avisos)
     return salida
 
 

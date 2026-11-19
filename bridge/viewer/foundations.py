@@ -68,6 +68,10 @@ def resultados(
         "soil_pressures": datos["soil_pressures"],
         "groups": datos["groups"],
         "model_locked": datos["model_locked"],
+        # Aditivos: marco de las reacciones y nodos convertidos a globales / no resueltos.
+        "reactions_frame": datos["reactions_frame"],
+        "joints_rotated": datos["joints_rotated"],
+        "joints_axes_unresolved": datos["joints_axes_unresolved"],
         "truncated": truncado,
         "warnings": avisos,
         # Aditivos: nudos de cada área y nombres pedidos que no existen (omitido si no se pudo comprobar).

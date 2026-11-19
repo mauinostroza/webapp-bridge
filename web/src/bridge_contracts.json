@@ -15,7 +15,10 @@
         "displacements",
         "soil_pressures",
         "groups",
-        "model_locked"
+        "model_locked",
+        "reactions_frame",
+        "joints_rotated",
+        "joints_axes_unresolved"
       ],
       "items": {
         "groups": ["id", "name", "nodes", "shells"]
@@ -310,7 +313,7 @@
     "POST /v1/sap/actions/zapata-biaxial/nodos": {
       "keys": ["modelo", "origen", "unidades", "columns", "data"]
     },
-    "POST /v1/sap/actions/zapata-biaxial/reacciones": { "keys": ["modelo", "unidades", "columns", "data"] },
+    "POST /v1/sap/actions/zapata-biaxial/reacciones": { "keys": ["modelo", "unidades", "columns", "data", "reactions_frame", "joints_rotated", "joints_axes_unresolved", "warnings"] },
     "POST /v1/sap/actions/zapata-biaxial/exportar/preview": {
       "keys": ["ok", "modelo", "bloqueado", "conflictos", "avisos", "material_existe", "resumen", "huella"]
     },
@@ -724,8 +727,10 @@
         "groups",
         "model_locked",
         "truncated",
-        "warnings"
-      ]
+        "warnings",
+        "reactions_frame",
+        "joints_rotated",
+        "joints_axes_unresolved"]
     },
     "POST /v1/sap/actions/cad/ifc": {
       "keys": ["nombre", "tamano", "contenido_base64"]

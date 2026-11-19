@@ -140,7 +140,14 @@ RUTAS_RETIRADAS = {
 
 # Claves que una ruta ya existente gana de forma aditiva (el contrato previo sigue siendo un subconjunto, en el
 # mismo orden): ``cad/status`` añade ``ifc`` (docs/CAD_IFC.md).
-CLAVES_AMPLIADAS = {"POST /v1/sap/actions/cad/status": ["ifc"]}
+_REACCIONES_GLOBALES = ["reactions_frame", "joints_rotated", "joints_axes_unresolved"]
+CLAVES_AMPLIADAS = {
+    "POST /v1/sap/actions/cad/status": ["ifc"],
+    # Reacciones de apoyo en ejes globales: marco de las reacciones y nodos convertidos / no resueltos.
+    "POST /v1/sap/snapshot": _REACCIONES_GLOBALES,
+    "POST /v1/sap/actions/viewer/foundations/results": _REACCIONES_GLOBALES,
+    "POST /v1/sap/actions/zapata-biaxial/reacciones": [*_REACCIONES_GLOBALES, "warnings"],
+}
 
 
 def test_previous_contract_keys_are_intact(contracts):
