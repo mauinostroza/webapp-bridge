@@ -3,6 +3,12 @@
 `scripts/sonda_combinaciones.py` averigua si alguna acción del puente (o SAP2000 mismo) elimina o modifica
 combinaciones. Se ejecuta en el PC del usuario, con SAP2000 abierto, y trabaja **solo sobre una copia** del modelo.
 
+Requiere las dependencias del puente en el entorno de Python:
+
+```powershell
+py -3.12 -m pip install -r backend\requirements.txt pywin32 httpx
+```
+
 ```powershell
 py -3.12 scripts\sonda_combinaciones.py
 py -3.12 scripts\sonda_combinaciones.py --solo R --sin-diseno
