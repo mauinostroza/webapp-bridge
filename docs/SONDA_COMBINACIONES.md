@@ -44,3 +44,21 @@ cambios inesperados, 1 con alguno, 2 sin conexión, 3 rechazada por una guarda. 
 `send_combinations_to_sap2000` hace `Add` → si falla `Delete` + `Add` para un nombre existente, sin comprobar el
 resultado de `Delete`. Si el segundo `Add` falla (p. ej. modelo bloqueado) la combinación queda eliminada. Lo reproducen
 `combinaciones/send (mismo nombre)` y R7b.
+
+## Reproducir el síntoma con el código anterior al arreglo
+
+`--raiz` prueba el código del puente de otra copia del repo. Para comparar con la versión anterior a la restauración de
+la selección de salida (commit `bbb1447`):
+
+```powershell
+git worktree add ..\bridge_anterior bbb1447
+py -3.12 scripts\sonda_combinaciones.py --raiz ..\bridge_anterior
+```
+
+Con el código anterior, las lecturas deberían aparecer como `CAMBIO_ESPERADO` con `seleccion_cambiada` (la selección de
+salida cambia); con el actual, `SIN_CAMBIO`. Limpiar después con `git worktree remove ..\bridge_anterior`.
+
+## Rutas ampliadas
+
+Además de las del primer informe, prueba: viewer (`connect`, lecturas, `k/preview` y `k/apply` con `unlock`),
+cortes de fundaciones (`preview` y `apply` con `desbloquear`), `esbelteces/k-factors/apply` y `profiles/section/apply`.

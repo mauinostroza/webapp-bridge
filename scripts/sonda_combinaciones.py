@@ -42,6 +42,10 @@ from pathlib import Path
 from typing import Any
 
 RAIZ = Path(__file__).resolve().parents[1]
+if (
+    "--raiz" in sys.argv[:-1]
+):  # otra copia del repo con el código del puente a probar (p. ej. un commit anterior)
+    RAIZ = Path(sys.argv[sys.argv.index("--raiz") + 1]).resolve()
 if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
@@ -558,6 +562,109 @@ def pruebas_puente(s: Sonda, fase: str) -> None:
         )
 
 
+def pruebas_puente_ampliadas(s: Sonda, fase: str) -> None:
+    """Rutas que desbloquean el modelo, editan tablas o guardan: viewer (k), cortes de fundaciones, perfiles, K de esbelteces."""
+    c = s.contexto
+    ej = s.ejecutar
+    V = f"{P}/viewer"
+    ej(fase, "viewer/connect", lambda: s.http("POST", f"{V}/connect", {}))
+    for ruta in (
+        "status",
+        "results/cases",
+        "results/design",
+        "results/reactions",
+        "results/frames",
+        "k",
+        "k/design",
+        "k/effective",
+        "k/diagnose",
+        "sections/props",
+    ):
+        ej(fase, f"GET viewer/{ruta}", lambda r=ruta: s.http("GET", f"{V}/{r}"))
+    if c["marco"]:
+        ej(fase, "GET viewer/results/frame", lambda: s.http("GET", f"{V}/results/frame/{c['marco']}"))
+    ej(fase, "GET viewer/snapshot", lambda: s.http("GET", f"{V}/snapshot"))
+    ej(fase, "GET foundations/section-cuts", lambda: s.http("GET", f"{P}/foundations/section-cuts"))
+    ej(
+        fase,
+        "GET foundations/section-cuts/groups",
+        lambda: s.http("GET", f"{P}/foundations/section-cuts/groups"),
+    )
+    ej(fase, "GET foundations/cases", lambda: s.http("GET", f"{P}/foundations/cases"))
+    ej(fase, "GET placa-base/cargas", lambda: s.http("GET", f"{P}/placa-base/cargas"))
+    ej(fase, "GET zapata-biaxial/estado", lambda: s.http("GET", f"{P}/zapata-biaxial/estado"))
+    ej(fase, "GET profiles/catalog", lambda: s.http("GET", f"{P}/profiles/catalog"))
+    ej(fase, "GET profiles/selected-frames", lambda: s.http("GET", f"{P}/profiles/selected-frames"))
+    # Escrituras (sobre la copia). K del viewer: vista previa de un cambio nulo y aplicación con desbloqueo permitido.
+    estado, datos = s.http("GET", f"{V}/k")
+    cambio = _primer_cambio_k(datos) if estado == 200 else None
+    if cambio:
+        marco, campo, valor = cambio
+        holder: dict[str, Any] = {}
+
+        def previa() -> Any:
+            r = s.http("POST", f"{V}/k/preview", {"frame": marco, "changes": {campo: valor}})
+            if isinstance(r[1], dict):
+                holder["nonce"] = r[1].get("nonce")
+            return r
+
+        ej(fase, "viewer/k/preview", previa)
+        if holder.get("nonce"):
+            ej(
+                fase,
+                "viewer/k/apply (unlock)",
+                lambda: s.http("POST", f"{V}/k/apply", {"nonce": holder["nonce"], "unlock": True}),
+            )
+    else:
+        s.ejecutar(fase, "viewer/k/apply", lambda: None)
+        s.informe.pruebas[-1].update(veredicto=OMITIDO, nota="el modelo no tiene overwrites de K de acero")
+    corte = PREFIJO + "CORTE"
+    if c["marco"]:
+        cuerpo = {"nombre": corte, "frames": [c["marco"]], "desbloquear": True, "confirmed": True}
+        ej(
+            fase,
+            "foundations/section-cuts/preview",
+            lambda: s.http("POST", f"{P}/foundations/section-cuts/preview", cuerpo),
+        )
+        ej(
+            fase,
+            "foundations/section-cuts/apply (desbloquear)",
+            lambda: s.http("POST", f"{P}/foundations/section-cuts/apply", cuerpo),
+        )
+        ej(
+            fase,
+            "esbelteces/k-factors/apply",
+            lambda: s.http(
+                "POST",
+                f"{P}/esbelteces/k-factors/apply",
+                {"items": [{"frame": c["marco"], "kx": 1.0, "ky": 1.0}], "confirmed": True},
+            ),
+        )
+    if c["marco"] and c["seccion"]:
+        ej(
+            fase,
+            "profiles/section/apply",
+            lambda: s.http(
+                "POST",
+                f"{P}/profiles/section/apply",
+                {"frames": [c["marco"]], "section": c["seccion"], "confirmed": True},
+            ),
+        )
+
+
+def _primer_cambio_k(datos: Any) -> tuple[str, str, float] | None:
+    """(barra, campo, valor actual) de la primera barra con un K numérico, para un cambio nulo."""
+    marcos = datos.get("frames") if isinstance(datos, dict) else None
+    if isinstance(marcos, dict):
+        for marco, campos in marcos.items():
+            if isinstance(campos, dict):
+                for campo, valor in campos.items():
+                    v = valor.get("value") if isinstance(valor, dict) else valor
+                    if isinstance(v, (int, float)) and not isinstance(v, bool):
+                        return str(marco), str(campo), float(v)
+    return None
+
+
 # --------------------------------------------------------------------------------------------------------------------
 # Controles con la API cruda (R): ¿es el puente o es SAP2000?
 # --------------------------------------------------------------------------------------------------------------------
@@ -678,6 +785,17 @@ def _guardar_y_reabrir(model: Any, copia: Path | None) -> list[Any]:
 # --------------------------------------------------------------------------------------------------------------------
 
 
+def _relock(s: Sonda, fase: str) -> None:
+    """En la fase L se vuelve a analizar (re-bloquear) por si una prueba anterior desbloqueó el modelo."""
+    if fase == "L":
+        s.ejecutar(
+            fase,
+            "re-bloquear: RunAnalysis",
+            lambda: s.crudo(lambda m: m.Analyze.RunAnalysis()),
+            {"bloqueo": True},
+        )
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--salida-dir", default=".")
@@ -685,6 +803,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--modelo-borrador", action="store_true", help="el modelo abierto ya es de prueba")
     ap.add_argument("--si", action="store_true", help="no pedir la confirmación escrita")
     ap.add_argument("--sin-diseno", action="store_true")
+    ap.add_argument(
+        "--raiz",
+        help="raíz de otra copia del repo cuyo código del puente se prueba (p. ej. un commit anterior)",
+    )
     ap.add_argument(
         "--solo", choices=("B", "R"), help="solo pruebas del puente (B) o solo controles crudos (R)"
     )
@@ -723,6 +845,10 @@ def main(argv: list[str] | None = None) -> int:
             if args.solo != "R":
                 pruebas_puente(s, fase)
             s.asegurar_copia()
+            if args.solo != "R":
+                _relock(s, fase)
+                pruebas_puente_ampliadas(s, fase)
+                s.asegurar_copia()
             if fase == "L" and args.solo != "B":
                 # section/apply(desbloquear) pudo desbloquear: se vuelve a analizar para que los controles crudos
                 # también se ejecuten con el modelo bloqueado.
