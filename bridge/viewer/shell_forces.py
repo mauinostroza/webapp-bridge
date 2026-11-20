@@ -14,8 +14,9 @@ Garantías (ver docs/SAP_ACTIONS.md, «Fundaciones SAP2000 en el Viewer»):
   estaban (``preserve_output_selection`` y ``_preservar_seleccion_tablas``).
 * Cada respaldo usado se dice en ``warnings``; un valor que no se lee es ``null`` o una fila omitida con aviso, nunca 0.
 
-Nombres de tablas, columnas y firmas de COM NO verificados contra SAP2000 real: las listas de alias están al principio del
-módulo para ajustarlas tras la sonda sin cambiar el contrato.
+Verificado con SAP2000 v23.3.1 (sonda de shells): los alias de tablas y columnas, la interpretación por columnas de
+``GetTransformationMatrix`` y que la tabla de fuerzas no trae ``StepNum``. Las listas de alias están al principio del módulo
+por si otra versión usa otros nombres.
 """
 
 from __future__ import annotations
@@ -23,7 +24,9 @@ from __future__ import annotations
 import hashlib
 import logging
 import math
+import threading
 import time
+from collections import OrderedDict
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any
@@ -383,7 +386,9 @@ def _geometria(
 Filas = dict[tuple[str, str, str, str], dict[str, Any]]
 
 
-def _filas_de_tabla(model: Any, elementos: dict[str, Any], casos: list[str], componentes: list[str]) -> Filas | None:
+def _filas_de_tabla(
+    model: Any, elementos: dict[str, Any], casos: list[str], componentes: list[str], avisos: list[str] | None = None
+) -> Filas | None:
     cols, datos = _tabla(model, TABLA_FUERZAS)
     if not cols or not datos:
         return None
@@ -410,6 +415,9 @@ def _filas_de_tabla(model: Any, elementos: dict[str, Any], casos: list[str], com
         filas[clave] = {c: _finito(fila[i]) if i is not None else None for c, i in idx_comp.items()}
         filas[clave]["_num"] = num
         filas[clave]["_faltan"] = [c for c, i in idx_comp.items() if i is None]
+    if i_num is None and avisos is not None and any(k[3].startswith("Step:") for k in filas):
+        # Verificado con SAP2000 v23.3.1: la tabla no trae StepNum; los pasos múltiples siguen el orden de las filas.
+        avisos.append(f"La tabla '{TABLA_FUERZAS}' no trae StepNum: los pasos múltiples se ordenan por el orden de las filas.")
     return filas or None
 
 
@@ -449,17 +457,27 @@ def _casos_con_filas(filas: Filas) -> set[str]:
     return {k[2] for k in filas}
 
 
+VIA_API = "Results.AreaForceShell(ALL)"
+VIA_TABLA = "tabla"
+
+
 def _fuerzas(
     model: Any,
     elementos: dict[str, Any],
     areas: list[str],
     casos: list[str],
+    combos: list[str],
     componentes: list[str],
-    mostrar_ok: bool,
     avisos: list[str],
 ) -> Filas:
-    """Lee los esfuerzos por la primera vía que devuelva filas; los casos que falten se piden a la siguiente."""
+    """Lee los esfuerzos: ``Results.AreaForceShell("ALL", GroupElm)`` primero y la tabla como respaldo.
+
+    Verificado con SAP2000 v23.3.1: con 10 000 elementos la API tarda 1,14 s y la tabla 20,4 s, así que la API va primero
+    (con la selección de salida ya hecha) y la tabla solo se lee para los casos que la API no devolvió; usarla se avisa en
+    ``warnings``. Después vienen la API por área y por elemento. Cada caso se lee por una sola vía.
+    """
     t0 = time.perf_counter()
+    pedidos = [*casos, *combos]
     acumuladas: Filas = {}
     vias: list[str] = []
 
@@ -475,53 +493,44 @@ def _fuerzas(
             vias.append(nombre)
 
     def pendientes() -> set[str]:
-        return set(casos) - _casos_con_filas(acumuladas)
+        return set(pedidos) - _casos_con_filas(acumuladas)
 
-    # a) tabla
-    completar_b: list[str] = []
+    # a) Results.AreaForceShell("ALL", GroupElm): una sola llamada, con la selección de salida ya hecha.
     try:
-        de_tabla = _filas_de_tabla(model, elementos, casos, componentes)
+        de_api = _filas_de_api(_llamar_area_force(model, "ALL", 2), elementos, pedidos, componentes)
     except Exception as exc:  # noqa: BLE001
-        log.info("shell-forces: tabla de fuerzas falló: %s", exc)
-        de_tabla = None
-    if de_tabla:
-        faltan_comp = sorted({c for v in de_tabla.values() for c in v["_faltan"]})
-        if faltan_comp:
-            completar_b = faltan_comp
-        incorporar(de_tabla, "tabla")
-        if not mostrar_ok and pendientes():
-            avisos.append(
-                "No se pudo capturar la selección «para mostrar» de las tablas: la tabla puede traer solo los casos "
-                "que el usuario tiene mostrados; los demás se piden por otra vía."
-            )
-    # b) Results.AreaForceShell("ALL", GroupElm) — también completa componentes que la tabla no trae
-    if pendientes() or completar_b:
-        try:
-            raw = _llamar_area_force(model, "ALL", 2)
-            de_api = _filas_de_api(raw, elementos, casos, componentes)
-        except Exception as exc:  # noqa: BLE001
-            log.info("shell-forces: AreaForceShell(ALL) falló: %s", exc)
-            de_api = {}
-        if completar_b and de_api:
-            comp_set = set(completar_b)
-            for clave, valores in acumuladas.items():
-                if clave in de_api:
-                    for c in comp_set:
-                        valores[c] = de_api[clave][c]
-                    valores["_faltan"] = []
-            avisos.append(
-                f"Componentes {', '.join(sorted(comp_set))} completados con Results.AreaForceShell (la tabla no los trae)."
-            )
-        incorporar(de_api, "Results.AreaForceShell(ALL)", pendientes() or None)
+        log.info("shell-forces: AreaForceShell(ALL) falló: %s", exc)
+        de_api = {}
+    incorporar(de_api, VIA_API)
+    # b) tabla «Element Forces - Area Shells» (respaldo, ~18 veces más lenta): solo para los casos que falten.
+    if pendientes():
+        with _preservar_seleccion_tablas(model, casos, combos, avisos) as mostrar_ok:
+            try:
+                de_tabla = _filas_de_tabla(model, elementos, pedidos, componentes, avisos)
+            except Exception as exc:  # noqa: BLE001
+                log.info("shell-forces: tabla de fuerzas falló: %s", exc)
+                de_tabla = None
+            if de_tabla:
+                faltan = sorted({c for v in de_tabla.values() for c in v["_faltan"]})
+                if faltan:
+                    avisos.append(
+                        f"La tabla '{TABLA_FUERZAS}' no trae los componentes {', '.join(faltan)}: quedan como null."
+                    )
+                incorporar(de_tabla, VIA_TABLA, pendientes())
+                if not mostrar_ok and pendientes():
+                    avisos.append(
+                        "No se pudo capturar la selección «para mostrar» de las tablas: la tabla puede traer solo los "
+                        "casos que el usuario tiene mostrados; los demás se piden por otra vía."
+                    )
     # c) por objeto
     if pendientes():
         de_obj: Filas = {}
         for area in areas:
             try:
-                de_obj.update(_filas_de_api(_llamar_area_force(model, area, 0), elementos, casos, componentes))
+                de_obj.update(_filas_de_api(_llamar_area_force(model, area, 0), elementos, pedidos, componentes))
             except Exception as exc:  # noqa: BLE001
                 log.info("shell-forces: AreaForceShell(%s) falló: %s", area, exc)
-        incorporar(de_obj, "Results.AreaForceShell por área", pendientes() or None)
+        incorporar(de_obj, "Results.AreaForceShell por área", pendientes())
     # d) por elemento, solo los que sigan sin filas
     if pendientes():
         con_filas = {k[0] for k in acumuladas}
@@ -529,14 +538,17 @@ def _fuerzas(
         de_elm: Filas = {}
         for elm in sin_filas:
             try:
-                de_elm.update(_filas_de_api(_llamar_area_force(model, elm, 1), elementos, casos, componentes))
+                de_elm.update(_filas_de_api(_llamar_area_force(model, elm, 1), elementos, pedidos, componentes))
             except Exception:  # noqa: BLE001
                 continue
         if sin_filas:
             avisos.append(f"{len(sin_filas)} elementos se leyeron uno a uno (Results.AreaForceShell por elemento).")
-        incorporar(de_elm, "Results.AreaForceShell por elemento", pendientes() or None)
-    if vias and vias[0] != "tabla":
-        avisos.append(f"Esfuerzos leídos por {', '.join(dict.fromkeys(vias))} (la tabla no estuvo disponible).")
+        incorporar(de_elm, "Results.AreaForceShell por elemento", pendientes())
+    if vias and vias[0] != VIA_API:
+        avisos.append(
+            f"Esfuerzos leídos por {', '.join(dict.fromkeys(vias))} (respaldo: Results.AreaForceShell(ALL) no devolvió "
+            "filas); la tabla es más lenta."
+        )
     elif len(set(vias)) > 1:
         avisos.append(f"Esfuerzos leídos por varias vías: {', '.join(dict.fromkeys(vias))}.")
     log.info("shell-forces: %d filas por %s en %.3f s", len(acumuladas), vias, time.perf_counter() - t0)
@@ -633,6 +645,38 @@ def _angulo_objeto(model: Any, area: str) -> float:
     return 0.0
 
 
+MAX_CACHE_EJES = 8  # mallas distintas que se recuerdan (la más antigua sale primero)
+_CACHE_EJES: OrderedDict[tuple[Any, ...], tuple[dict[str, dict[str, list[float]]], list[str]]] = OrderedDict()
+_CACHE_EJES_LOCK = threading.Lock()
+
+
+def limpiar_cache_ejes() -> None:
+    """Vacía la caché de ejes (las pruebas y un cambio de modelo la usan)."""
+    with _CACHE_EJES_LOCK:
+        _CACHE_EJES.clear()
+
+
+def _angulo_y_avanzado(model: Any, area: str) -> tuple[float, bool | None]:
+    """Ángulo y bandera ``Advanced`` de los ejes locales del área (``AreaObj.GetLocalAxes``); ``(0, None)`` si no se lee."""
+    try:
+        raw = model.AreaObj.GetLocalAxes(area)
+    except Exception:  # noqa: BLE001
+        return 0.0, None
+    angulo = next((v for v in raw if isinstance(v, float) and math.isfinite(v)), 0.0) if isinstance(raw, (list, tuple)) else 0.0
+    avanzado = next((v for v in raw if isinstance(v, bool)), None) if isinstance(raw, (list, tuple)) else None
+    return angulo, avanzado
+
+
+def _clave_cache_ejes(model: Any, elementos: dict[str, Any], huella: str) -> tuple[Any, ...]:
+    """Clave de la caché: ``mesh_hash`` más el ángulo y la bandera ``Advanced`` de cada área.
+
+    El ``mesh_hash`` solo cubre conectividad y coordenadas; girar los ejes locales de un área no cambia la malla pero sí
+    los ejes, así que se añaden esos valores (una llamada COM por área, no por elemento).
+    """
+    areas = dict.fromkeys(d["area"] for d in elementos.values())
+    return (huella, tuple((a, *_angulo_y_avanzado(model, a)) for a in areas))
+
+
 def _ejes_por_regla(n_geo: tuple[float, float, float], angulo_grados: float) -> tuple[tuple, tuple, tuple]:
     """Regla por defecto de SAP2000: eje 1 horizontal (``Z × v3``); en losas horizontales, eje 2 = +Y; luego el ángulo."""
     v3 = n_geo
@@ -658,6 +702,32 @@ def _ortonormalizar(v1: Any, v2: Any, v3: Any) -> tuple[list[float], list[float]
 
 
 def _ejes(
+    model: Any, elementos: dict[str, Any], nodos: dict[str, list[float]], avisos: list[str], huella: str | None = None
+) -> dict[str, dict[str, list[float]]]:
+    """Ejes locales por elemento; con ``huella`` (``mesh_hash``) se recuerdan en memoria entre lecturas de la misma malla."""
+    clave = _clave_cache_ejes(model, elementos, huella) if huella else None
+    if clave is not None:
+        with _CACHE_EJES_LOCK:
+            guardado = _CACHE_EJES.get(clave)
+            if guardado is not None:
+                _CACHE_EJES.move_to_end(clave)
+        if guardado is not None:
+            ejes_guardados, avisos_guardados = guardado
+            avisos.extend(avisos_guardados)
+            avisos.append("Ejes locales tomados de la caché en memoria (misma malla y mismos ejes de área).")
+            return {e: {k: list(v) for k, v in ejes.items()} for e, ejes in ejes_guardados.items()}
+    avisos_calculo: list[str] = []
+    ejes = _calcular_ejes(model, elementos, nodos, avisos_calculo)
+    avisos.extend(avisos_calculo)
+    if clave is not None:
+        with _CACHE_EJES_LOCK:
+            _CACHE_EJES[clave] = ({e: {k: list(v) for k, v in d.items()} for e, d in ejes.items()}, avisos_calculo)
+            while len(_CACHE_EJES) > MAX_CACHE_EJES:
+                _CACHE_EJES.popitem(last=False)
+    return ejes
+
+
+def _calcular_ejes(
     model: Any, elementos: dict[str, Any], nodos: dict[str, list[float]], avisos: list[str]
 ) -> dict[str, dict[str, list[float]]]:
     t0 = time.perf_counter()
@@ -808,8 +878,7 @@ def _leer(
     elementos, nodos, truncado = _geometria(model, areas, max_elementos, avisos)
     pedidos = [*casos, *combos]
     _marcar_salida(model, casos, combos)
-    with _preservar_seleccion_tablas(model, casos, combos, avisos) as mostrar_ok:
-        filas = _fuerzas(model, elementos, areas, pedidos, componentes, mostrar_ok, avisos)
+    filas = _fuerzas(model, elementos, areas, casos, combos, componentes, avisos)
     if not filas:
         raise ResultsError(409, "no_results", MSG_CORRIDO_SIN_RESULTADOS)
     # Filas de esquinas que no pertenecen al elemento: se descartan con aviso.
@@ -854,14 +923,15 @@ def _leer(
     elif len(rows) > MAX_FILAS:
         truncado = True
         avisos.append(f"El primer caso ya supera el tope de {MAX_FILAS} filas; reduce max_elements.")
-    ejes = _ejes(model, elementos, nodos, avisos) if incluir_ejes else {}
+    huella = mesh_hash(elementos, nodos)
+    ejes = _ejes(model, elementos, nodos, avisos, huella) if incluir_ejes else {}
     return {
         "elements": elementos,
         "nodes": nodos,
         "axes": ejes,
         "rows": rows,
         "truncated": truncado,
-        "mesh_hash": mesh_hash(elementos, nodos),
+        "mesh_hash": huella,
     }
 
 

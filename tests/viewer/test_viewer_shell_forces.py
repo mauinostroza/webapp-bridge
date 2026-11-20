@@ -107,8 +107,10 @@ class _Tablas:
                 return (0, (), 0, (), 0, ())
             comps = [c for c in COMPS if c not in m.tabla_sin_componente]
             cols = ["AreaElem", "Joint", "OutputCase", "StepType", "StepNum", *comps]
+            if m.tabla_sin_stepnum:
+                cols.remove("StepNum")
             filas = [
-                [e, n, caso, tipo, str(num), *[str(valor(i, k, caso, c, num, tipo)) for c in comps]]
+                [e, n, caso, tipo, *([] if m.tabla_sin_stepnum else [str(num)]), *[str(valor(i, k, caso, c, num, tipo)) for c in comps]]
                 for i, (e, nudos) in enumerate(m.todos_elementos())
                 for k, n in enumerate(nudos)
                 for caso in NOMBRES_CASOS
@@ -231,6 +233,7 @@ class FakeShell:
         self.coord = kw.pop("coord", COORD)
         self.tabla_falla = kw.pop("tabla_falla", False)
         self.tabla_sin_columnas = kw.pop("tabla_sin_columnas", False)
+        self.tabla_sin_stepnum = kw.pop("tabla_sin_stepnum", False)
         self.tabla_sin_componente = kw.pop("tabla_sin_componente", ())
         self.api_falla = kw.pop("api_falla", False)
         self.api_solo_elementos = kw.pop("api_solo_elementos", False)
@@ -302,6 +305,13 @@ class FakeShell:
         self.unit_log.append(u)
         self.units = u
         return 0
+
+
+@pytest.fixture(autouse=True)
+def _cache_de_ejes_limpia():
+    sf.limpiar_cache_ejes()
+    yield
+    sf.limpiar_cache_ejes()
 
 
 def leer(model, **cuerpo):
@@ -376,20 +386,40 @@ def _base():
     return leer(FakeShell())
 
 
-@pytest.mark.parametrize("falla", [{"tabla_falla": True}, {"tabla_sin_columnas": True}])
-def test_respaldo_por_api_coincide_con_la_tabla(falla):
-    r = leer(FakeShell(**falla))
-    ref = _base()
-    assert r["rows"] == ref["rows"] and r["elements"] == ref["elements"]
-    assert any("Results.AreaForceShell(ALL)" in w for w in r["warnings"])
-
-
-def test_tabla_sin_un_componente_se_completa_por_la_api():
-    m = FakeShell(tabla_sin_componente=("M12",))
+def test_la_api_va_primero_y_no_toca_la_tabla_de_fuerzas():
+    m = FakeShell()
     r = leer(m)
-    ref = _base()
-    assert r["rows"] == ref["rows"]
-    assert any("M12" in w and "completados" in w for w in r["warnings"])
+    assert ("tabla", sf.TABLA_FUERZAS) not in m.log
+    assert not [c for c in m.log if isinstance(c, tuple) and c[0].startswith("mostrar_")]  # ni la selección para mostrar
+    assert not any("respaldo" in w for w in r["warnings"])
+
+
+def test_via_api_y_tabla_devuelven_los_mismos_valores_y_la_tabla_avisa():
+    con_api = leer(FakeShell())
+    con_tabla = leer(FakeShell(api_falla=True))
+    assert con_tabla["rows"] == con_api["rows"] and con_tabla["elements"] == con_api["elements"]
+    assert any("tabla" in w and "respaldo" in w for w in con_tabla["warnings"])
+    assert not any("respaldo" in w for w in con_api["warnings"])
+
+
+@pytest.mark.parametrize("falla", [{"tabla_sin_columnas": True}])
+def test_si_la_tabla_no_sirve_la_api_basta(falla):
+    assert leer(FakeShell(**falla))["rows"] == _base()["rows"]
+
+
+def test_tabla_sin_un_componente_deja_null_y_avisa():
+    r = leer(FakeShell(api_falla=True, tabla_sin_componente=("M12",)))
+    i = r["columns"].index("M12")
+    assert all(f[i] is None for f in r["rows"])  # nunca 0 inventado
+    assert any("M12" in w and "null" in w for w in r["warnings"])
+    assert [f[:4] for f in r["rows"]] == [f[:4] for f in _base()["rows"]]
+
+
+def test_tabla_sin_stepnum_no_falla_y_ordena_por_fila():
+    r = leer(FakeShell(api_falla=True, tabla_sin_stepnum=True), areas=["A2"])
+    q = [f for f in r["rows"] if f[2] == "Q" and f[1] == "7"]
+    assert [f[4] for f in q] == [valor(2, 0, "Q", "F11", 1, "Step"), valor(2, 0, "Q", "F11", 2, "Step")]
+    assert any("StepNum" in w for w in r["warnings"])
 
 
 def test_respaldo_por_elemento_solo_para_los_que_faltan():
@@ -637,21 +667,70 @@ def test_ninguna_llamada_que_modifique_el_modelo(kw):
 # --- 13. selección «para mostrar» de las tablas ------------------------------------------------------------------------
 
 
-def test_seleccion_para_mostrar_se_restaura():
-    m = FakeShell(mostrar_obedece=True)
+def test_seleccion_para_mostrar_se_restaura_cuando_se_usa_la_tabla():
+    m = FakeShell(api_falla=True, mostrar_obedece=True)
     r = leer(m)
     assert {f[2] for f in r["rows"]} == set(NOMBRES_CASOS)  # la tabla obedeció la selección que se le puso
     assert (m.mostrado_c, m.mostrado_k) == (["DEAD"], ["U1"])
 
 
 def test_si_no_se_puede_capturar_la_seleccion_para_mostrar_no_se_toca():
-    m = FakeShell(mostrar_no_capturable=True, mostrar_obedece=True)
+    m = FakeShell(api_falla=True, mostrar_no_capturable=True, mostrar_obedece=True)
     r = leer(m)
     assert not [c for c in m.log if isinstance(c, tuple) and c[0].startswith("mostrar_")]
-    assert {f[2] for f in r["rows"]} == set(
-        NOMBRES_CASOS
-    )  # los casos que la tabla no trajo se pidieron a la API
+    assert {f[2] for f in r["rows"]} == {"DEAD", "U1"}  # solo lo que la tabla tenía mostrado
     assert any("selección «para mostrar»" in w for w in r["warnings"])
+    assert any("'Q' no devolvió resultados" in w for w in r["warnings"])  # lo que falta se dice, no se inventa
+
+
+# --- caché de ejes por mesh_hash ----------------------------------------------------------------------------------------
+
+
+def _mat(m):
+    return lambda e: matriz_columnas((1, 0, 0), (0, 1, 0), (0, 0, 1))
+
+
+def _llamadas_matriz(m):
+    return len([c for c in m.log if isinstance(c, tuple) and c[0] == "AreaElm.GetTransformationMatrix"])
+
+
+def test_los_ejes_se_cachean_por_malla_entre_lecturas():
+    m = FakeShell(matriz_elemento=_mat(None))
+    primera = leer(m)
+    assert _llamadas_matriz(m) == 3
+    segunda = leer(m, cases=["DEAD"], components=["F11"])  # mismos ejes: otros casos y componentes
+    assert _llamadas_matriz(m) == 3  # no se repiten
+    assert segunda["axes"] == primera["axes"] and segunda["mesh_hash"] == primera["mesh_hash"]
+    assert any("caché" in w for w in segunda["warnings"])
+
+
+def test_la_cache_no_se_usa_si_cambia_la_malla_o_el_angulo_del_area():
+    leer(FakeShell(matriz_elemento=_mat(None)))
+    misma = FakeShell(matriz_elemento=_mat(None))  # otra sesión de SAP con la misma malla y los mismos ejes
+    leer(misma)
+    assert _llamadas_matriz(misma) == 0
+    otra_malla = FakeShell(matriz_elemento=_mat(None), coord=dict(COORD, **{"9": (3.0, 1.5, 0.0)}))
+    leer(otra_malla)
+    assert _llamadas_matriz(otra_malla) == 3
+    giro = FakeShell(matriz_elemento=_mat(None), angulo_objeto=45.0)  # misma malla, otro ángulo de área
+    leer(giro)
+    assert _llamadas_matriz(giro) == 3
+
+
+def test_la_copia_cacheada_no_se_comparte_con_el_llamador():
+    m = FakeShell(matriz_elemento=_mat(None))
+    primera = leer(m)
+    primera["axes"]["A1-1"]["v1"][0] = 99.0
+    assert leer(m)["axes"]["A1-1"]["v1"][0] == 1.0
+
+
+def test_la_cache_tiene_tope(monkeypatch):
+    monkeypatch.setattr(sf, "MAX_CACHE_EJES", 2)
+    for i in range(4):
+        malla = {"A": [("A-1", ["1", "2", "3"])]}
+        coord = {"1": (0.0, 0.0, 0.0), "2": (1.0 + i, 0.0, 0.0), "3": (0.0, 1.0, 0.0)}
+        leer(FakeShell(malla=malla, coord=coord))
+    assert len(sf._CACHE_EJES) == 2
 
 
 # --- 14. ruta ----------------------------------------------------------------------------------------------------------

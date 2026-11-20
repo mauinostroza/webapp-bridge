@@ -43,15 +43,15 @@ Resultado: 42 tests nuevos con un SAP simulado; suite completa 1974 correctos y 
 - Mirar siempre `warnings`: dice qué vía de lectura se usó (tabla o respaldos) y cuántos elementos tienen ejes derivados de la
   geometría en vez de leídos de SAP2000.
 
-## 4. Sin verificar con SAP2000 real
+## 4. Verificado y sin verificar con SAP2000
 
-- Nombres y columnas de las tablas «Objects And Elements - Areas», «Objects And Elements - Joints» y «Element Forces - Area Shells».
-- Unidades de la tabla de fuerzas (se asumen las presentes, Ton_m_C).
-- Firmas de `Get/SetLoadCasesSelectedForDisplay` y si la tabla obedece esa selección o la de `Results.Setup`.
-- Interpretación de `GetTransformationMatrix` (por columnas; la traspuesta solo se detecta en planos inclinados), herencia de ejes
-  en mallas automáticas y valores de `StepType`.
+Verificado con SAP2000 v23.3.1 (sonda de shells): los alias de las tres tablas, la interpretación por columnas de
+`GetTransformationMatrix`, la sensibilidad de la tabla de fuerzas a las unidades y a la selección de salida, y que la tabla no trae
+`StepNum`. Orden de lectura resultante: `Results.AreaForceShell("ALL", GroupElm)` primero (1,14 s con 10 000 elementos) y la tabla
+(20,4 s) solo como respaldo con aviso; los ejes por elemento (11,9 s) se guardan en una caché en memoria por `mesh_hash`.
 
-Los alias están al principio de `bridge/viewer/shell_forces.py`: tras la sonda se ajustan sin cambiar el contrato.
+Sin verificar: las firmas de `Get/SetLoadCasesSelectedForDisplay`, la herencia de ejes en mallas automáticas de otras versiones y los
+valores de `StepType` distintos de `""`, `Max`, `Min` y `Step`.
 
 ## 5. Puntos del contrato que no se cumplen tal cual
 
@@ -63,5 +63,5 @@ Los alias están al principio de `bridge/viewer/shell_forces.py`: tras la sonda 
 ## 6. Pendiente
 
 - Aceptación manual con SAP2000 real: `docs/SAP2000_ACCEPTANCE.md`, sección «Viewer: esfuerzos de shell por esquina».
-- `POST viewer/foundations/shell-joint-forces` (`Results.AreaJointForceShell`) queda para una petición futura, cuando la sonda
+- `POST viewer/foundations/shell-joint-forces` (`Results.AreaJointForceShell`; la sonda confirmó 12 arreglos y el momento en M2 en ejes del elemento) queda para una petición futura, cuando la sonda
   confirme su firma y sus ejes.
