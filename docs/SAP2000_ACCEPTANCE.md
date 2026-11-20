@@ -2695,3 +2695,20 @@ Con SAP2000 real y un modelo con un apoyo cuyos ejes locales están girados 30°
 - ☐ Falló
 
 Observaciones (¿hubo que cambiar la convención?): ____________________
+
+## Viewer: fuerzas de elemento en nudos (`viewer/foundations/shell-joint-forces`)
+
+Con el modelo de la sonda de shells (tres losas de 6 × 4 m) analizado:
+
+1. Llame con `{"areas": [<áreas de L1>], "cases": ["Q"], "frame": "element"}` y con `"frame": "global"`. En L1 (ejes iguales a los globales) ambos
+   resultados coinciden; ΣF3 de las filas es ±48 tonf (la carga Q de la losa).
+2. Repita con L2 y con L3: con `frame: "global"` ΣF3 debe ser igual en las tres losas. Anote ΣM1, ΣM2 y ΣM3.
+3. Compruebe que las unidades y la selección de salida del usuario quedan como estaban y que el modelo sigue bloqueado.
+4. Con 10 000 elementos y un caso, anote el tiempo (`AreaJointForceShell("ALL")`): ______.
+
+La prueba B2 de `scripts/sonda_shells_malla_auto.py` (docs/SONDA_SHELLS_MALLA_AUTO.md) hace los pasos 1 y 2.
+
+- ☐ Pasó
+- ☐ Falló
+
+Observaciones: ____________________

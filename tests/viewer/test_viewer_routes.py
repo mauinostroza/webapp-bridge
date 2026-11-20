@@ -44,6 +44,7 @@ RUTAS_ESPERADAS = {
     ("GET", "foundations/groups"),
     ("POST", "foundations/results"),
     ("POST", "foundations/shell-forces"),
+    ("POST", "foundations/shell-joint-forces"),
 }
 
 

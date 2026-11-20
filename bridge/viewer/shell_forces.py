@@ -77,6 +77,9 @@ _ORDEN_API = (
     "FAngle", "FVM", "M11", "M22", "M12", "MMax", "MMin", "MAngle", "V13", "V23", "VMax", "VAngle",
 )  # fmt: skip
 _IDX_API = {nombre: i for i, nombre in enumerate(_ORDEN_API)}
+# Results.AreaJointForceShell (verificado con SAP2000 v23.3.1, variante 0): 12 arreglos tras el código de retorno y el conteo.
+_ORDEN_API_NUDOS = ("Obj", "Elm", "PointElm", "LoadCase", "StepType", "StepNum", "F1", "F2", "F3", "M1", "M2", "M3")
+COMPONENTES_NUDOS = ("F1", "F2", "F3", "M1", "M2", "M3")
 
 _TOL_UNITARIO = 1e-3
 _ORDEN_STEP = {"": 0, "Max": 1, "Min": 2, "Step": 3}
@@ -421,33 +424,41 @@ def _filas_de_tabla(
     return filas or None
 
 
-def _llamar_area_force(model: Any, nombre: str, tipo: int) -> Any:
-    metodo = model.Results.AreaForceShell
+def _llamar_area_force(
+    model: Any, nombre: str, tipo: int, metodo_api: str = "AreaForceShell", n_salidas: int = 23
+) -> Any:
+    metodo = getattr(model.Results, metodo_api)
     try:
         return metodo(nombre, tipo)
     except Exception:  # noqa: BLE001
         vacio: list = []
-        return metodo(nombre, tipo, 0, vacio, vacio, vacio, vacio, vacio, vacio, *([vacio] * 23))
+        return metodo(nombre, tipo, 0, vacio, vacio, vacio, vacio, vacio, vacio, *([vacio] * (n_salidas - 6)))
 
 
 def _filas_de_api(
-    raw: Any, elementos: dict[str, Any], casos: list[str], componentes: list[str], solo_casos: set[str] | None = None
+    raw: Any,
+    elementos: dict[str, Any],
+    casos: list[str],
+    componentes: list[str],
+    solo_casos: set[str] | None = None,
+    orden: tuple[str, ...] = _ORDEN_API,
 ) -> Filas:
     arrays = _response_arrays(raw)
-    if len(arrays) < len(_ORDEN_API):
+    if len(arrays) < len(orden):
         return {}
+    idx = {nombre: i for i, nombre in enumerate(orden)}
     pedidos = set(casos) if solo_casos is None else solo_casos
     filas: Filas = {}
-    n = len(arrays[_IDX_API["Elm"]])
+    n = len(arrays[idx["Elm"]])
     for k in range(n):
-        elm, esquina = str(arrays[_IDX_API["Elm"]][k]), str(arrays[_IDX_API["PointElm"]][k])
-        caso = str(arrays[_IDX_API["LoadCase"]][k])
+        elm, esquina = str(arrays[idx["Elm"]][k]), str(arrays[idx["PointElm"]][k])
+        caso = str(arrays[idx["LoadCase"]][k])
         if elm not in elementos or caso not in pedidos:
             continue
-        paso = _paso(arrays[_IDX_API["StepType"]][k])
-        num = _finito(arrays[_IDX_API["StepNum"]][k])
+        paso = _paso(arrays[idx["StepType"]][k])
+        num = _finito(arrays[idx["StepNum"]][k])
         clave = (elm, esquina, caso, paso if paso != "Step" else f"Step:{num if num is not None else k}")
-        filas[clave] = {c: _finito(arrays[_IDX_API[c]][k]) for c in componentes}
+        filas[clave] = {c: _finito(arrays[idx[c]][k]) for c in componentes}
         filas[clave]["_num"] = num
         filas[clave]["_faltan"] = []
     return filas
@@ -469,6 +480,9 @@ def _fuerzas(
     combos: list[str],
     componentes: list[str],
     avisos: list[str],
+    metodo_api: str = "AreaForceShell",
+    orden: tuple[str, ...] = _ORDEN_API,
+    con_tabla: bool = True,
 ) -> Filas:
     """Lee los esfuerzos: ``Results.AreaForceShell("ALL", GroupElm)`` primero y la tabla como respaldo.
 
@@ -497,13 +511,16 @@ def _fuerzas(
 
     # a) Results.AreaForceShell("ALL", GroupElm): una sola llamada, con la selección de salida ya hecha.
     try:
-        de_api = _filas_de_api(_llamar_area_force(model, "ALL", 2), elementos, pedidos, componentes)
+        de_api = _filas_de_api(
+            _llamar_area_force(model, "ALL", 2, metodo_api, len(orden)), elementos, pedidos, componentes, None, orden
+        )
     except Exception as exc:  # noqa: BLE001
-        log.info("shell-forces: AreaForceShell(ALL) falló: %s", exc)
+        log.info("shell-forces: %s(ALL) falló: %s", metodo_api, exc)
         de_api = {}
-    incorporar(de_api, VIA_API)
+    via_api = f"Results.{metodo_api}(ALL)"
+    incorporar(de_api, via_api)
     # b) tabla «Element Forces - Area Shells» (respaldo, ~18 veces más lenta): solo para los casos que falten.
-    if pendientes():
+    if con_tabla and pendientes():
         with _preservar_seleccion_tablas(model, casos, combos, avisos) as mostrar_ok:
             try:
                 de_tabla = _filas_de_tabla(model, elementos, pedidos, componentes, avisos)
@@ -527,10 +544,19 @@ def _fuerzas(
         de_obj: Filas = {}
         for area in areas:
             try:
-                de_obj.update(_filas_de_api(_llamar_area_force(model, area, 0), elementos, pedidos, componentes))
+                de_obj.update(
+                    _filas_de_api(
+                        _llamar_area_force(model, area, 0, metodo_api, len(orden)),
+                        elementos,
+                        pedidos,
+                        componentes,
+                        None,
+                        orden,
+                    )
+                )
             except Exception as exc:  # noqa: BLE001
-                log.info("shell-forces: AreaForceShell(%s) falló: %s", area, exc)
-        incorporar(de_obj, "Results.AreaForceShell por área", pendientes())
+                log.info("shell-forces: %s(%s) falló: %s", metodo_api, area, exc)
+        incorporar(de_obj, f"Results.{metodo_api} por área", pendientes())
     # d) por elemento, solo los que sigan sin filas
     if pendientes():
         con_filas = {k[0] for k in acumuladas}
@@ -538,16 +564,25 @@ def _fuerzas(
         de_elm: Filas = {}
         for elm in sin_filas:
             try:
-                de_elm.update(_filas_de_api(_llamar_area_force(model, elm, 1), elementos, pedidos, componentes))
+                de_elm.update(
+                    _filas_de_api(
+                        _llamar_area_force(model, elm, 1, metodo_api, len(orden)),
+                        elementos,
+                        pedidos,
+                        componentes,
+                        None,
+                        orden,
+                    )
+                )
             except Exception:  # noqa: BLE001
                 continue
         if sin_filas:
-            avisos.append(f"{len(sin_filas)} elementos se leyeron uno a uno (Results.AreaForceShell por elemento).")
-        incorporar(de_elm, "Results.AreaForceShell por elemento", pendientes())
-    if vias and vias[0] != VIA_API:
+            avisos.append(f"{len(sin_filas)} elementos se leyeron uno a uno (Results.{metodo_api} por elemento).")
+        incorporar(de_elm, f"Results.{metodo_api} por elemento", pendientes())
+    if vias and vias[0] != via_api:
         avisos.append(
-            f"Esfuerzos leídos por {', '.join(dict.fromkeys(vias))} (respaldo: Results.AreaForceShell(ALL) no devolvió "
-            "filas); la tabla es más lenta."
+            f"Esfuerzos leídos por {', '.join(dict.fromkeys(vias))} (respaldo: {via_api} no devolvió "
+            "filas)."
         )
     elif len(set(vias)) > 1:
         avisos.append(f"Esfuerzos leídos por varias vías: {', '.join(dict.fromkeys(vias))}.")
@@ -865,6 +900,29 @@ def _marcar_salida(model: Any, casos: list[str], combos: list[str]) -> None:
         _marcar(setup.SetComboSelectedForOutput, c)
 
 
+def _a_globales(rows: list[list[Any]], ejes: dict[str, dict[str, list[float]]], componentes: list[str]) -> None:
+    """Lleva EN SU SITIO fuerzas (F1..F3) y momentos (M1..M3) de ejes del elemento a ejes globales.
+
+    ``global = v1·c1 + v2·c2 + v3·c3`` con los ejes locales del elemento. Si falta algún valor de un trío, el trío queda en
+    ``null``: no se inventa nada. Un elemento sin ejes deja sus valores como están (``_leer`` ya lo avisó).
+    """
+    tripletas = [
+        [4 + componentes.index(c) for c in trio] for trio in (("F1", "F2", "F3"), ("M1", "M2", "M3")) if all(c in componentes for c in trio)
+    ]
+    for fila in rows:
+        e = ejes.get(fila[0])
+        if e is None:
+            continue
+        for idx in tripletas:
+            v = [fila[i] for i in idx]
+            if any(x is None for x in v):
+                for i in idx:
+                    fila[i] = None
+                continue
+            for k, i in enumerate(idx):
+                fila[i] = e["v1"][k] * v[0] + e["v2"][k] * v[1] + e["v3"][k] * v[2]
+
+
 def _leer(
     model: Any,
     areas: list[str],
@@ -874,11 +932,17 @@ def _leer(
     incluir_ejes: bool,
     max_elementos: int,
     avisos: list[str],
+    *,
+    metodo_api: str = "AreaForceShell",
+    orden: tuple[str, ...] = _ORDEN_API,
+    con_tabla: bool = True,
+    a_globales: bool = False,
 ) -> dict[str, Any]:
+    """Lectura común de ``shell-forces`` y ``shell-joint-forces``; ``a_globales`` lleva F1..M3 de ejes del elemento a globales."""
     elementos, nodos, truncado = _geometria(model, areas, max_elementos, avisos)
     pedidos = [*casos, *combos]
     _marcar_salida(model, casos, combos)
-    filas = _fuerzas(model, elementos, areas, casos, combos, componentes, avisos)
+    filas = _fuerzas(model, elementos, areas, casos, combos, componentes, avisos, metodo_api, orden, con_tabla)
     if not filas:
         raise ResultsError(409, "no_results", MSG_CORRIDO_SIN_RESULTADOS)
     # Filas de esquinas que no pertenecen al elemento: se descartan con aviso.
@@ -924,11 +988,13 @@ def _leer(
         truncado = True
         avisos.append(f"El primer caso ya supera el tope de {MAX_FILAS} filas; reduce max_elements.")
     huella = mesh_hash(elementos, nodos)
-    ejes = _ejes(model, elementos, nodos, avisos, huella) if incluir_ejes else {}
+    ejes = _ejes(model, elementos, nodos, avisos, huella) if (incluir_ejes or a_globales) else {}
+    if a_globales:
+        _a_globales(rows, ejes, componentes)
     return {
         "elements": elementos,
         "nodes": nodos,
-        "axes": ejes,
+        "axes": ejes if incluir_ejes else {},
         "rows": rows,
         "truncated": truncado,
         "mesh_hash": huella,

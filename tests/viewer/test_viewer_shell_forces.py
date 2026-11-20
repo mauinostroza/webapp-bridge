@@ -834,3 +834,45 @@ def test_con_ejes_una_llamada_por_elemento():
     leer(m)
     llamadas = [c for c in m.log if isinstance(c, tuple) and c[0] == "AreaElm.GetTransformationMatrix"]
     assert len(llamadas) == 3
+
+
+# --- modelo de la sonda de shells (SONDA_F0_SHELL.s2k: tres losas de 6 × 4 m con malla de 0,5 m) -----------------------------
+
+
+def _malla_sonda():
+    """Geometría de ``SONDA_F0_SHELL.s2k``: L1 en z = 0; L2 = L1 desplazada 10 m en X y girada 30° en planta alrededor de
+    (10, 0); L3 en (0,10)–(6,14) con la normal invertida (nudos J1, J4, J3, J2). Nudos 1–117, 1001–1117 y 2001–2117;
+    áreas 1–96, 1001–1096 y 2001–2096 (96 elementos y 117 nudos por losa)."""
+    coord: dict[str, tuple[float, float, float]] = {}
+    malla: dict[str, list[tuple[str, list[str]]]] = {}
+    for base, mover in ((0, lambda x, y: (x, y)), (1000, lambda x, y: (10 + x * C30 - y * S30, x * S30 + y * C30)), (2000, lambda x, y: (x, 10 + y))):
+        for j in range(9):
+            for i in range(13):
+                x, y = mover(i * 0.5, j * 0.5)
+                coord[str(base + 1 + j * 13 + i)] = (x, y, 0.0)
+        for j in range(8):
+            for i in range(12):
+                area = str(base + 1 + j * 12 + i)
+                n = lambda ii, jj, b=base: str(b + 1 + jj * 13 + ii)  # noqa: E731
+                nudos = [n(i, j), n(i + 1, j), n(i + 1, j + 1), n(i, j + 1)]
+                if base == 2000:
+                    nudos = [nudos[0], nudos[3], nudos[2], nudos[1]]
+                malla[area] = [(area, nudos)]
+    return malla, coord
+
+
+C30, S30 = math.cos(math.radians(30)), math.sin(math.radians(30))
+
+
+def test_modelo_de_la_sonda_api_y_tabla_devuelven_los_mismos_valores():
+    malla, coord = _malla_sonda()
+    assert len(malla) == 288 and len(coord) == 351
+    con_api = leer(FakeShell(malla=malla, coord=coord), include_axes=False)
+    con_tabla = leer(FakeShell(malla=malla, coord=coord, api_falla=True), include_axes=False)
+    assert len(con_api["rows"]) == 288 * 4 * 6  # elemento × esquina × (DEAD, Q×2 pasos, U1, ENV×2)
+    assert con_tabla["rows"] == con_api["rows"] and con_tabla["elements"] == con_api["elements"]
+    assert con_tabla["mesh_hash"] == con_api["mesh_hash"]
+    assert any("tabla" in w and "respaldo" in w for w in con_tabla["warnings"])
+    assert not any("respaldo" in w for w in con_api["warnings"])
+    # L3: la normal invertida se refleja en el orden de los nudos, que se conserva tal como lo da SAP2000
+    assert con_api["elements"]["2001"]["nodes"] == ["2001", "2014", "2015", "2002"]

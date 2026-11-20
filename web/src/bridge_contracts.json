@@ -734,6 +734,22 @@
     },
     "POST /v1/sap/actions/cad/ifc": {
       "keys": ["nombre", "tamano", "contenido_base64"]
+    },
+    "POST /v1/sap/actions/viewer/foundations/shell-joint-forces": {
+      "keys": [
+        "ok",
+        "units",
+        "model_locked",
+        "truncated",
+        "warnings",
+        "mesh_hash",
+        "forces_frame",
+        "elements",
+        "nodes",
+        "axes",
+        "columns",
+        "rows"
+      ]
     }
   },
   "legado": {
