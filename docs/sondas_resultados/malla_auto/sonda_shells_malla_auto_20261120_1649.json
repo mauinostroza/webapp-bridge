@@ -1,0 +1,343 @@
+{
+  "meta": {
+    "modelo": "C:\\Users\\<usuario>\\Downloads\\Pruebas\\sonda_malla_auto_out\\SONDA_F0_SHELL_L2AUTO.sdb",
+    "antes": {
+      "unidades": 12,
+      "bloqueado": true,
+      "seleccion": [
+        [],
+        []
+      ],
+      "modelo": "C:\\Users\\<usuario>\\Downloads\\Pruebas\\sonda_malla_auto_out\\SONDA_F0_SHELL_L2AUTO.sdb"
+    },
+    "despues": {
+      "unidades": 12,
+      "bloqueado": true,
+      "seleccion": [
+        [],
+        []
+      ],
+      "modelo": "C:\\Users\\<usuario>\\Downloads\\Pruebas\\sonda_malla_auto_out\\SONDA_F0_SHELL_L2AUTO.sdb"
+    }
+  },
+  "pruebas": [
+    {
+      "id": "A0",
+      "titulo": "L2 est\u00e1 mallada autom\u00e1ticamente",
+      "veredicto": "PASS",
+      "nota": "1 \u00e1rea(s) con 20 elemento(s) de an\u00e1lisis",
+      "datos": {
+        "elementos_por_area": {
+          "L2": 20
+        }
+      }
+    },
+    {
+      "id": "A1",
+      "titulo": "Interpretaci\u00f3n por columnas v\u00e1lida en los elementos",
+      "veredicto": "PASS",
+      "nota": "20 de 20 elementos con matriz v\u00e1lida por columnas (det +1, v3\u00b7n = \u00b11).",
+      "datos": {}
+    },
+    {
+      "id": "A2",
+      "titulo": "Nudos internos de la malla autom\u00e1tica no son PointObj",
+      "veredicto": "PASS",
+      "nota": "26 nudos internos '~\u2026'.",
+      "datos": {
+        "ejemplo": [
+          "~1",
+          "~10",
+          "~11",
+          "~12",
+          "~13"
+        ]
+      }
+    },
+    {
+      "id": "A3",
+      "titulo": "Los elementos heredan los ejes del objeto (v1 de AreaElm = v1 de AreaObj)",
+      "veredicto": "PASS",
+      "nota": "Desviaci\u00f3n m\u00e1xima entre el v1 del elemento y el del objeto: 0.0000\u00b0.",
+      "datos": {
+        "desviacion_max_grados": 0.0,
+        "objetos": {
+          "L2": {
+            "angulo_objeto": 30.0,
+            "avanzado": false,
+            "matriz_objeto": [
+              0.8660254037844387,
+              -0.49999999999999994,
+              0.0,
+              0.49999999999999994,
+              0.8660254037844387,
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "A4",
+      "titulo": "La regla por defecto (+ \u00e1ngulo del objeto) reproduce los ejes de los elementos",
+      "veredicto": "PASS",
+      "nota": "Desviaci\u00f3n m\u00e1xima: 0.0000\u00b0 (es lo que dar\u00eda el respaldo del puente si no hubiera matriz).",
+      "datos": {}
+    },
+    {
+      "id": "A5",
+      "titulo": "El puente devuelve ejes para todos los elementos de L2",
+      "veredicto": "PASS",
+      "nota": "20 de 20 elementos con ejes en 1.40 s. Avisos de ejes: ninguno.",
+      "datos": {
+        "warnings": []
+      }
+    },
+    {
+      "id": "C1",
+      "titulo": "API y tabla dan los mismos valores (caso Q)",
+      "veredicto": "FAIL",
+      "nota": "768 filas por API (1.18 s) y 768 por tabla (1.92 s); diferencia m\u00e1xima 4.974e-04; solo API: 0, solo tabla: 0.",
+      "datos": {
+        "diferencia_max": 0.0004973778216950109,
+        "warnings_tabla": [
+          "Esfuerzos le\u00eddos por tabla (respaldo: Results.AreaForceShell(ALL) no devolvi\u00f3 filas)."
+        ]
+      }
+    },
+    {
+      "id": "B1V13",
+      "titulo": "Signo de V13 en L3 respecto a L1 bajo el caso Q (esperado: igual)",
+      "veredicto": "PASS",
+      "nota": "384 pares elemento-esquina: 384 igual, 0 opuesto, 0 nulos; dominante: igual.",
+      "datos": {
+        "conteo": {
+          "igual": 384,
+          "opuesto": 0,
+          "nulo": 0
+        }
+      }
+    },
+    {
+      "id": "B1V23",
+      "titulo": "Signo de V23 en L3 respecto a L1 bajo el caso Q (esperado: opuesto)",
+      "veredicto": "PASS",
+      "nota": "384 pares elemento-esquina: 0 igual, 384 opuesto, 0 nulos; dominante: opuesto.",
+      "datos": {
+        "conteo": {
+          "igual": 0,
+          "opuesto": 384,
+          "nulo": 0
+        }
+      }
+    },
+    {
+      "id": "B1M11",
+      "titulo": "Signo de M11 en L3 respecto a L1 bajo el caso Q (esperado: opuesto)",
+      "veredicto": "PASS",
+      "nota": "384 pares elemento-esquina: 0 igual, 384 opuesto, 0 nulos; dominante: opuesto.",
+      "datos": {
+        "conteo": {
+          "igual": 0,
+          "opuesto": 384,
+          "nulo": 0
+        }
+      }
+    },
+    {
+      "id": "B2",
+      "titulo": "\u03a3F3 de AreaJointForceShell en ejes globales coincide en L1, L2 y L3 (caso Q)",
+      "veredicto": "FAIL",
+      "nota": "\u03a3F3 global: {'L1': 48.00000000002152, 'L2': 48.00000107100788, 'L3': -48.00000000002739}. No coinciden: la conversi\u00f3n con los ejes del elemento no es la correcta (compare con 'elemento').",
+      "datos": {
+        "totales": {
+          "L1": {
+            "global": [
+              0.0,
+              0.0,
+              48.00000000002152,
+              -2.187879715993478e-12,
+              7.323451568661065e-12,
+              0.0
+            ],
+            "elemento": [
+              0.0,
+              0.0,
+              48.00000000002152,
+              -2.187879715993478e-12,
+              7.323451568661065e-12,
+              0.0
+            ],
+            "warnings": [
+              "F1..M3 se llevaron de los ejes locales del elemento (como los entrega SAP2000) a ejes globales con los ejes del elemento; solo est\u00e1 comprobado en losas con ejes iguales a los globales."
+            ]
+          },
+          "L2": {
+            "global": [
+              0.0,
+              0.0,
+              48.00000107100788,
+              1.3405619967504582e-13,
+              -3.8346372901179134e-14,
+              0.0
+            ],
+            "elemento": [
+              0.0,
+              0.0,
+              48.00000107100788,
+              9.814676941883266e-14,
+              -1.0034607213104173e-13,
+              0.0
+            ],
+            "warnings": [
+              "F1..M3 se llevaron de los ejes locales del elemento (como los entrega SAP2000) a ejes globales con los ejes del elemento; solo est\u00e1 comprobado en losas con ejes iguales a los globales."
+            ]
+          },
+          "L3": {
+            "global": [
+              0.0,
+              0.0,
+              -48.00000000002739,
+              2.7822417448897596e-12,
+              -5.449618579860827e-12,
+              0.0
+            ],
+            "elemento": [
+              0.0,
+              0.0,
+              48.00000000002739,
+              -2.7822417448897596e-12,
+              -5.449618579860827e-12,
+              0.0
+            ],
+            "warnings": [
+              "F1..M3 se llevaron de los ejes locales del elemento (como los entrega SAP2000) a ejes globales con los ejes del elemento; solo est\u00e1 comprobado en losas con ejes iguales a los globales."
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "B1V13",
+      "titulo": "Signo de V13 en L3 respecto a L1 bajo el caso P (esperado: igual)",
+      "veredicto": "PASS",
+      "nota": "384 pares elemento-esquina: 384 igual, 0 opuesto, 0 nulos; dominante: igual.",
+      "datos": {
+        "conteo": {
+          "igual": 384,
+          "opuesto": 0,
+          "nulo": 0
+        }
+      }
+    },
+    {
+      "id": "B1V23",
+      "titulo": "Signo de V23 en L3 respecto a L1 bajo el caso P (esperado: opuesto)",
+      "veredicto": "PASS",
+      "nota": "384 pares elemento-esquina: 0 igual, 384 opuesto, 0 nulos; dominante: opuesto.",
+      "datos": {
+        "conteo": {
+          "igual": 0,
+          "opuesto": 384,
+          "nulo": 0
+        }
+      }
+    },
+    {
+      "id": "B1M11",
+      "titulo": "Signo de M11 en L3 respecto a L1 bajo el caso P (esperado: opuesto)",
+      "veredicto": "PASS",
+      "nota": "384 pares elemento-esquina: 0 igual, 384 opuesto, 0 nulos; dominante: opuesto.",
+      "datos": {
+        "conteo": {
+          "igual": 0,
+          "opuesto": 384,
+          "nulo": 0
+        }
+      }
+    },
+    {
+      "id": "B2",
+      "titulo": "\u03a3F3 de AreaJointForceShell en ejes globales coincide en L1, L2 y L3 (caso P)",
+      "veredicto": "PASS",
+      "nota": "\u03a3F3 global: {'L1': 5.74498901142334e-12, 'L2': 0.0, 'L3': -7.197200301012341e-12}. ",
+      "datos": {
+        "totales": {
+          "L1": {
+            "global": [
+              0.0,
+              0.0,
+              5.74498901142334e-12,
+              2.252724917115621e-12,
+              -1.0671684840287924e-13,
+              0.0
+            ],
+            "elemento": [
+              0.0,
+              0.0,
+              5.74498901142334e-12,
+              2.252724917115621e-12,
+              -1.0671684840287924e-13,
+              0.0
+            ],
+            "warnings": [
+              "F1..M3 se llevaron de los ejes locales del elemento (como los entrega SAP2000) a ejes globales con los ejes del elemento; solo est\u00e1 comprobado en losas con ejes iguales a los globales."
+            ]
+          },
+          "L2": {
+            "global": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "elemento": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "warnings": [
+              "F1..M3 se llevaron de los ejes locales del elemento (como los entrega SAP2000) a ejes globales con los ejes del elemento; solo est\u00e1 comprobado en losas con ejes iguales a los globales."
+            ]
+          },
+          "L3": {
+            "global": [
+              0.0,
+              0.0,
+              -7.197200301012341e-12,
+              1.569350942082186e-12,
+              -1.3112243699623223e-12,
+              0.0
+            ],
+            "elemento": [
+              0.0,
+              0.0,
+              7.197200301012341e-12,
+              -1.569350942082186e-12,
+              -1.3112243699623223e-12,
+              0.0
+            ],
+            "warnings": [
+              "F1..M3 se llevaron de los ejes locales del elemento (como los entrega SAP2000) a ejes globales con los ejes del elemento; solo est\u00e1 comprobado en losas con ejes iguales a los globales."
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "Z",
+      "titulo": "Unidades, bloqueo y selecci\u00f3n de salida restaurados",
+      "veredicto": "PASS",
+      "nota": "Iguales a los de antes.",
+      "datos": {}
+    }
+  ]
+}
