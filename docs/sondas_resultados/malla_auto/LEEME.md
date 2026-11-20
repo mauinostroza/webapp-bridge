@@ -15,3 +15,7 @@ Resultados con L2 mallada:
 - Z PASS: unidades, bloqueo y selección de salida restaurados.
 
 Nota: el tamaño máximo 0,5 de `AREA AUTO MESH ASSIGNMENTS` no genera 96 elementos en L2, sino 20.
+
+
+## Actualización
+La causa de que la malla automática no salga de 0,5 m está en `NOTA_AREA_AUTO_MESH.md`: el generador usa el valor `MeshType` y los campos `MaxSize1/MaxSize2` equivocados (SAP2000 usa `Maximum Size` y `Max1/Max2` y aplica 1,2192 m por defecto).
