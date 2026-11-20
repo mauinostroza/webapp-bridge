@@ -104,6 +104,7 @@ def test_contrato_y_restauracion():
     }  # fmt: skip
     assert r["ok"] is True and r["units"] == {"force": "tonf", "length": "m"} and r["model_locked"] is True
     assert r["forces_frame"] == "global"
+    assert not [c for c in m.log if isinstance(c, tuple) and "TransformationMatrix" in c[0]]
     assert r["columns"] == ["elm", "node", "case", "step", *COMP]
     assert r["axes"] == {}  # include_axes es false por defecto
     assert r["elements"]["A2-1"]["nodes"] == ["7", "8", "9"]  # triángulo con 3 nudos
@@ -128,44 +129,56 @@ def test_usa_la_api_de_nudos_y_no_la_de_esfuerzos_ni_tablas_de_fuerzas():
     assert ("tabla", sf.TABLA_FUERZAS) not in m.log
 
 
-# --- ejes de los valores ---------------------------------------------------------------------------------------------------
+# --- ejes de los valores: SAP2000 los entrega en GLOBALES (sonda de malla automática, B2) -------------------------------------
 
 
-def test_frame_element_devuelve_los_valores_tal_como_los_entrega_sap():
-    r = leer(FakeJoint(), frame="element", cases=["DEAD"])
-    assert r["forces_frame"] == "element"
-    f = r["rows"][0]
-    assert f[4:] == [valor(0, 0, "DEAD", c, 0, "") for c in COMP]
+def _llamadas_matriz(m):
+    return [c for c in m.log if isinstance(c, tuple) and "TransformationMatrix" in c[0]]
 
 
-def test_frame_global_con_ejes_iguales_a_los_globales_no_cambia_nada():
-    glob = leer(FakeJoint(matriz_elemento=_identidad), cases=["DEAD"])
-    elem = leer(FakeJoint(), frame="element", cases=["DEAD"])
-    assert glob["rows"] == elem["rows"]
+def test_frame_global_por_defecto_devuelve_los_valores_tal_como_los_entrega_sap_sin_leer_ejes():
+    m = FakeJoint(matriz_elemento=_identidad)
+    r = leer(m, cases=["DEAD"])
+    assert r["forces_frame"] == "global"
+    assert r["rows"][0][4:] == [valor(0, 0, "DEAD", c, 0, "") for c in COMP]  # crudo, sin rotar
+    assert _llamadas_matriz(m) == []  # no hace falta leer los ejes
 
 
-def test_frame_global_rota_fuerzas_y_momentos_con_los_ejes_del_elemento():
+def test_el_total_vertical_es_el_mismo_en_losas_con_la_normal_invertida():
+    # Regresión de la sonda (B2): ΣF3 global debe coincidir en L1 y L3; rotar por los ejes del elemento invertía el signo de L3.
+    invertida = lambda e: matriz_columnas((-1, 0, 0), (0, 1, 0), (0, 0, -1))  # noqa: E731
+    g1 = leer(FakeJoint(matriz_elemento=_identidad), cases=["DEAD"], areas=["A1"])
+    g3 = leer(FakeJoint(matriz_elemento=invertida), cases=["DEAD"], areas=["A1"])
+    assert sum(f[6] for f in g1["rows"]) == pytest.approx(sum(f[6] for f in g3["rows"]))
+
+
+def test_frame_element_con_ejes_iguales_a_los_globales_no_cambia_nada():
+    glob = leer(FakeJoint(), cases=["DEAD"])
+    elem = leer(FakeJoint(matriz_elemento=_identidad), frame="element", cases=["DEAD"])
+    assert elem["forces_frame"] == "element" and elem["rows"] == glob["rows"]
+
+
+def test_frame_element_lleva_de_globales_a_los_ejes_del_elemento():
     mat = lambda e: matriz_columnas((C30, S30, 0), (-S30, C30, 0), (0, 0, 1))  # noqa: E731
-    glob = leer(FakeJoint(matriz_elemento=mat), cases=["DEAD"], areas=["A1"])
-    elem = leer(FakeJoint(), frame="element", cases=["DEAD"], areas=["A1"])
-    for g, e in zip(glob["rows"], elem["rows"], strict=True):
-        f1, f2, f3, m1, m2, m3 = e[4:]
-        assert g[4:] == pytest.approx([C30 * f1 - S30 * f2, S30 * f1 + C30 * f2, f3, C30 * m1 - S30 * m2, S30 * m1 + C30 * m2, m3])
-    assert any("ejes globales" in w for w in glob["warnings"])
+    elem = leer(FakeJoint(matriz_elemento=mat), frame="element", cases=["DEAD"], areas=["A1"])
+    glob = leer(FakeJoint(), cases=["DEAD"], areas=["A1"])
+    for e, g in zip(elem["rows"], glob["rows"], strict=True):
+        f1, f2, f3, m1, m2, m3 = g[4:]
+        assert e[4:] == pytest.approx([C30 * f1 + S30 * f2, -S30 * f1 + C30 * f2, f3, C30 * m1 + S30 * m2, -S30 * m1 + C30 * m2, m3])
+    assert any("ejes locales del elemento" in w for w in elem["warnings"])
 
 
-def test_frame_global_con_normal_invertida_cambia_el_signo_de_m2():
-    # L3 de la sonda: v1 = (−1, 0, 0), v2 = (0, 1, 0), v3 = (0, 0, −1)
-    mat = lambda e: matriz_columnas((-1, 0, 0), (0, 1, 0), (0, 0, -1))  # noqa: E731
-    glob = leer(FakeJoint(matriz_elemento=mat), cases=["DEAD"], areas=["A1"])
-    elem = leer(FakeJoint(), frame="element", cases=["DEAD"], areas=["A1"])
-    g, e = glob["rows"][0], elem["rows"][0]
-    assert g[4:] == pytest.approx([-e[4], e[5], -e[6], -e[7], e[8], -e[9]])
+def test_frame_element_con_normal_invertida_cambia_el_signo_de_f1_y_f3():
+    invertida = lambda e: matriz_columnas((-1, 0, 0), (0, 1, 0), (0, 0, -1))  # noqa: E731
+    elem = leer(FakeJoint(matriz_elemento=invertida), frame="element", cases=["DEAD"], areas=["A1"])
+    glob = leer(FakeJoint(), cases=["DEAD"], areas=["A1"])
+    e, g = elem["rows"][0], glob["rows"][0]
+    assert e[4:] == pytest.approx([-g[4], g[5], -g[6], -g[7], g[8], -g[9]])
 
 
 def test_valor_no_finito_deja_el_trio_en_null_sin_inventar_cero():
     m = FakeJoint(matriz_elemento=_identidad, joint_sin_valor="M2")
-    r = leer(m, cases=["DEAD"])
+    r = leer(m, cases=["DEAD"], frame="element")
     f = r["rows"][0]
     assert f[7:] == [None, None, None] and f[4:7] != [None, None, None]
 
@@ -175,7 +188,7 @@ def test_include_axes_devuelve_los_ejes_y_la_cache_evita_repetir_las_llamadas():
     r = leer(m, include_axes=True)
     assert set(r["axes"]) == set(r["elements"])
     n = len([c for c in m.log if isinstance(c, tuple) and c[0] == "AreaElm.GetTransformationMatrix"])
-    leer(m)  # el marco global usa los mismos ejes: de la caché
+    leer(m, frame="element")  # el marco del elemento usa los mismos ejes: de la caché
     assert len([c for c in m.log if isinstance(c, tuple) and c[0] == "AreaElm.GetTransformationMatrix"]) == n
 
 

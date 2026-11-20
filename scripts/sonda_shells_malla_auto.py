@@ -49,7 +49,8 @@ if str(RAIZ) not in sys.path:
 
 PASS, FAIL, INCONCLUSO, ERROR = "PASS", "FAIL", "INCONCLUSO", "ERROR"
 TOL_ANGULO = 1e-3  # rad
-TOL_VALOR = 1e-9
+TOL_TABLA_ABS = 1e-3  # redondeo de la tabla de SAP2000 (valores impresos con pocos decimales)
+TOL_TABLA_REL = 1e-6
 COMPONENTES_V = ["M11", "M22", "V13", "V23"]
 
 
@@ -251,12 +252,16 @@ def prueba_c(model: Any, inf: Informe, areas: list[str], caso: str) -> None:
             if x is None or y is None:
                 continue
             diff = max(diff, abs(x - y))
-    ok = not solo_a and not solo_t and diff < TOL_VALOR + 1e-9 * max(1.0, diff)
+    vmax = max((abs(x) for fila in ra.values() for x in fila if x is not None), default=0.0)
+    # La tabla de SAP2000 redondea los valores que imprime (sonda de shells: 4,97e-4 frente a la API): se acepta ese redondeo.
+    tolerancia = max(TOL_TABLA_ABS, TOL_TABLA_REL * vmax)
+    ok = not solo_a and not solo_t and diff <= tolerancia
     inf.agregar(
         "C1",
         f"API y tabla dan los mismos valores (caso {caso})",
         PASS if ok and ra else FAIL if ra else INCONCLUSO,
-        f"{len(ra)} filas por API ({t_api:.2f} s) y {len(rt)} por tabla ({t_tabla:.2f} s); diferencia máxima {diff:.3e}; "
+        f"{len(ra)} filas por API ({t_api:.2f} s) y {len(rt)} por tabla ({t_tabla:.2f} s); diferencia máxima {diff:.3e} "
+        f"(tolerancia {tolerancia:.1e}, redondeo de la tabla); "
         f"solo API: {len(solo_a)}, solo tabla: {len(solo_t)}.",
         diferencia_max=diff,
         warnings_tabla=con_tabla["warnings"],
@@ -357,7 +362,7 @@ def prueba_b(
             + (
                 ""
                 if iguales
-                else "No coinciden: la conversión con los ejes del elemento no es la correcta (compare con 'elemento')."
+                else "No coinciden: AreaJointForceShell no entrega las fuerzas en ejes globales (compare con 'elemento')."
             ),
             totales=totales,
         )

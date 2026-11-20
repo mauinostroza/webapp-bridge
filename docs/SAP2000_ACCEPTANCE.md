@@ -2700,9 +2700,9 @@ Observaciones (¿hubo que cambiar la convención?): ____________________
 
 Con el modelo de la sonda de shells (tres losas de 6 × 4 m) analizado:
 
-1. Llame con `{"areas": [<áreas de L1>], "cases": ["Q"], "frame": "element"}` y con `"frame": "global"`. En L1 (ejes iguales a los globales) ambos
-   resultados coinciden; ΣF3 de las filas es ±48 tonf (la carga Q de la losa).
-2. Repita con L2 y con L3: con `frame: "global"` ΣF3 debe ser igual en las tres losas. Anote ΣM1, ΣM2 y ΣM3.
+1. Llame con `{"areas": [<áreas de L1>], "cases": ["Q"], "frame": "global"}` y con `"frame": "element"`. En L1 (ejes iguales a los globales) ambos
+   resultados coinciden; ΣF3 de las filas es +48 tonf (la carga Q de la losa). Verificado con SAP2000 v23.3.1: los valores crudos son globales.
+2. Repita con L2 y con L3: con `frame: "global"` ΣF3 debe ser +48 en las tres losas (también en L3, de normal invertida). Anote ΣM1, ΣM2 y ΣM3.
 3. Compruebe que las unidades y la selección de salida del usuario quedan como estaban y que el modelo sigue bloqueado.
 4. Con 10 000 elementos y un caso, anote el tiempo (`AreaJointForceShell("ALL")`): ______.
 

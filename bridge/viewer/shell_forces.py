@@ -900,14 +900,18 @@ def _marcar_salida(model: Any, casos: list[str], combos: list[str]) -> None:
         _marcar(setup.SetComboSelectedForOutput, c)
 
 
-def _a_globales(rows: list[list[Any]], ejes: dict[str, dict[str, list[float]]], componentes: list[str]) -> None:
-    """Lleva EN SU SITIO fuerzas (F1..F3) y momentos (M1..M3) de ejes del elemento a ejes globales.
+def _a_ejes_del_elemento(
+    rows: list[list[Any]], ejes: dict[str, dict[str, list[float]]], componentes: list[str]
+) -> None:
+    """Lleva EN SU SITIO fuerzas (F1..F3) y momentos (M1..M3) de ejes globales a los ejes locales del elemento.
 
-    ``global = v1·c1 + v2·c2 + v3·c3`` con los ejes locales del elemento. Si falta algún valor de un trío, el trío queda en
-    ``null``: no se inventa nada. Un elemento sin ejes deja sus valores como están (``_leer`` ya lo avisó).
+    ``local_k = v_k · global`` con los ejes locales del elemento. Si falta algún valor de un trío, el trío queda en ``null``:
+    no se inventa nada. Un elemento sin ejes deja sus valores como están (``_leer`` ya lo avisó).
     """
     tripletas = [
-        [4 + componentes.index(c) for c in trio] for trio in (("F1", "F2", "F3"), ("M1", "M2", "M3")) if all(c in componentes for c in trio)
+        [4 + componentes.index(c) for c in trio]
+        for trio in (("F1", "F2", "F3"), ("M1", "M2", "M3"))
+        if all(c in componentes for c in trio)
     ]
     for fila in rows:
         e = ejes.get(fila[0])
@@ -920,7 +924,8 @@ def _a_globales(rows: list[list[Any]], ejes: dict[str, dict[str, list[float]]], 
                     fila[i] = None
                 continue
             for k, i in enumerate(idx):
-                fila[i] = e["v1"][k] * v[0] + e["v2"][k] * v[1] + e["v3"][k] * v[2]
+                eje = e[("v1", "v2", "v3")[k]]
+                fila[i] = eje[0] * v[0] + eje[1] * v[1] + eje[2] * v[2]
 
 
 def _leer(
@@ -936,9 +941,9 @@ def _leer(
     metodo_api: str = "AreaForceShell",
     orden: tuple[str, ...] = _ORDEN_API,
     con_tabla: bool = True,
-    a_globales: bool = False,
+    a_elemento: bool = False,
 ) -> dict[str, Any]:
-    """Lectura común de ``shell-forces`` y ``shell-joint-forces``; ``a_globales`` lleva F1..M3 de ejes del elemento a globales."""
+    """Lectura común de ``shell-forces`` y ``shell-joint-forces``; ``a_elemento`` lleva F1..M3 de ejes globales a los del elemento."""
     elementos, nodos, truncado = _geometria(model, areas, max_elementos, avisos)
     pedidos = [*casos, *combos]
     _marcar_salida(model, casos, combos)
@@ -988,9 +993,9 @@ def _leer(
         truncado = True
         avisos.append(f"El primer caso ya supera el tope de {MAX_FILAS} filas; reduce max_elements.")
     huella = mesh_hash(elementos, nodos)
-    ejes = _ejes(model, elementos, nodos, avisos, huella) if (incluir_ejes or a_globales) else {}
-    if a_globales:
-        _a_globales(rows, ejes, componentes)
+    ejes = _ejes(model, elementos, nodos, avisos, huella) if (incluir_ejes or a_elemento) else {}
+    if a_elemento:
+        _a_ejes_del_elemento(rows, ejes, componentes)
     return {
         "elements": elementos,
         "nodes": nodos,

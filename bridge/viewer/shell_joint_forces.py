@@ -9,11 +9,11 @@ las unidades (Ton_m_C restauradas), la selección de salida (restaurada), los l�
 errores y los avisos (ver ``bridge.viewer.shell_forces``). A diferencia de él no hay tabla de respaldo: si
 ``AreaJointForceShell("ALL")`` no devuelve filas se piden por área y por elemento.
 
-Ejes de los valores: SAP2000 entrega F1..F3 y M1..M3 en los ejes locales del ELEMENTO (en la sonda el momento sale en M2). Por
-defecto (``frame: "global"``) se llevan a globales con los ejes del elemento (``v1·c1 + v2·c2 + v3·c3``) y la respuesta lo dice
-en ``forces_frame``; con ``frame: "element"`` se devuelven tal como los entrega SAP2000. Que sean ejes del elemento solo está
-comprobado donde coinciden con los globales (L1 de la sonda) y por los totales de L3 con el signo de M2 invertido: no se ha
-probado con una malla girada.
+Ejes de los valores (verificado con SAP2000 v23.3.1, sonda de malla automática, prueba B2): ``AreaJointForceShell`` entrega
+F1..F3 y M1..M3 en ejes GLOBALES, no en los del elemento (ΣF3 de una carga gravitatoria es +48 tonf en L1, L2 y L3 aunque L3
+tenga la normal invertida; en muros los valores crudos coinciden con la estática). Por eso ``frame: "global"`` (por defecto)
+devuelve los valores tal como los entrega SAP2000, sin rotarlos, y ``frame: "element"`` los lleva de globales a los ejes
+locales del elemento con ``local_k = v_k · global`` (``v1, v2, v3`` de ``shell-forces``, de su caché).
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ FRAMES = ("global", "element")
 
 
 def shell_joint_forces(model: Any, body: dict[str, Any]) -> dict[str, Any]:
-    """Fuerzas de elemento en sus nudos por elemento × nudo × caso × paso. Solo lectura; ver el docstring del módulo."""
+    """Fuerzas de elemento en sus nudos por elemento × nudo × caso × paso (globales por defecto). Solo lectura; ver el docstring del módulo."""
     frame = body.get("frame") or "global"
     if frame not in FRAMES:
         raise ResultsError(422, "invalid_frame", f"frame debe ser uno de {list(FRAMES)}.")
@@ -64,17 +64,17 @@ def shell_joint_forces(model: Any, body: dict[str, Any]) -> dict[str, Any]:
                     metodo_api="AreaJointForceShell",
                     orden=_ORDEN_API_NUDOS,
                     con_tabla=False,
-                    a_globales=frame == "global",
+                    a_elemento=frame == "element",
                 ),
             )
     except RuntimeError as exc:
         if "present units" in str(exc) or "SetPresentUnits" in str(exc):
             raise ResultsError(409, "units_not_restored", f"Unidades de SAP2000: {exc}") from exc
         raise
-    if frame == "global":
+    if frame == "element":
         avisos.append(
-            "F1..M3 se llevaron de los ejes locales del elemento (como los entrega SAP2000) a ejes globales con los ejes del "
-            "elemento; solo está comprobado en losas con ejes iguales a los globales."
+            "F1..M3 se llevaron de los ejes globales (como los entrega SAP2000) a los ejes locales del elemento con los "
+            "ejes de shell-forces."
         )
     return {
         "ok": True,

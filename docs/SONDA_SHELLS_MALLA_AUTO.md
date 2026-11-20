@@ -13,7 +13,7 @@
 | A4 | La regla por defecto de SAP2000 más el ángulo del objeto (respaldo del puente) reproduce los ejes de los elementos |
 | A5 | El puente devuelve ejes para todos los elementos de L2 (y qué avisos da) |
 | B1V13, B1V23, B1M11 | **Signo** de V13, V23 y M11 en L3 respecto a L1, elemento a elemento. Esperado: V13 igual, V23 opuesto, M11 opuesto |
-| B2 | ΣF3 de `AreaJointForceShell` en ejes globales coincide en L1, L2 y L3 (valida `frame: "global"` de `shell-joint-forces`) |
+| B2 | ΣF3 de `AreaJointForceShell` en ejes globales coincide en L1, L2 y L3 (valida que `frame: "global"` de `shell-joint-forces`, el valor crudo, está en globales) |
 | C1 | `Results.AreaForceShell("ALL")` y la tabla «Element Forces - Area Shells» dan los mismos valores en el modelo real |
 | Z | Unidades, bloqueo y selección de salida quedan como estaban |
 
@@ -55,6 +55,7 @@ El `.json` (y el `.md`) de `sonda_shells_malla_auto_AAAAMMDD_HHMM`. Anote ademá
 - A3 PASS: los elementos de una malla automática heredan los ejes del objeto; el puente puede leerlos por elemento (como ya hace) y la
   regla por defecto sirve de respaldo. A3 FAIL: la herencia no se cumple; `AreaElm` es la única fuente fiable.
 - B1: si V13 sale igual y V23 opuesto, la convención del prototipo web es la correcta; si no, hay que cambiarla en `corteShell.ts`.
-- B2 FAIL: SAP2000 no entrega las fuerzas de nudo en los ejes del elemento (o la interpretación de ejes falla en L2/L3); el puente
-  debe devolverlas con `frame: "element"` mientras tanto.
-- C1 FAIL: la API y la tabla no coinciden en el modelo real; revisar unidades, selección de salida y pasos.
+- B2 FAIL: SAP2000 no entrega las fuerzas de nudo en ejes globales. Resultado de la sonda con SAP2000 v23.3.1: **PASS** (los valores crudos
+  son globales; una versión anterior del puente los rotaba por los ejes del elemento y salía −48 en L3).
+- C1 FAIL: la API y la tabla no coinciden en el modelo real; revisar unidades, selección de salida y pasos. La tabla redondea los valores que
+  imprime: se acepta una diferencia de hasta 1e-3 (la sonda dio 4,97e-4).
