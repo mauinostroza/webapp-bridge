@@ -27,6 +27,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from bridge.viewer import foundations as fund
 from bridge.viewer import shell_forces as sf
+from bridge.viewer import shell_joint_forces as sjf
 from bridge.viewer.core import results as res
 from bridge.viewer.core import results_bulk as bulk
 from bridge.viewer.core.bridge import BridgeError, LocalBridge
@@ -81,6 +82,18 @@ class ShellForcesRequest(BaseModel):
         if not value or len(set(value)) != len(value) or any(c not in sf.COMPONENTES for c in value):
             raise ValueError(f"components debe ser un subconjunto no vacío y sin repetir de {list(sf.COMPONENTES)}")
         return value
+
+
+class ShellJointForcesRequest(BaseModel):
+    """Cuerpo de ``foundations/shell-joint-forces``: como ``shell-forces`` sin ``components`` y con el marco de las fuerzas."""
+
+    model_config = ConfigDict(extra="forbid")
+    areas: list[Annotated[str, Field(min_length=1, max_length=200)]] = Field(default_factory=list, max_length=20_000)
+    cases: list[str] | None = Field(default=None, max_length=500)
+    combos: list[str] | None = Field(default=None, max_length=500)
+    include_axes: bool = False
+    max_elements: int = Field(default=20_000, ge=1, le=200_000)
+    frame: Literal["global", "element"] = "global"
 
 
 class FoundationResultsRequest(BaseModel):
@@ -264,6 +277,11 @@ def install_routes(app: Any) -> None:
     async def foundations_shell_forces(body: ShellForcesRequest):
         """Esfuerzos de shell por esquina de elemento, malla 3D y ejes locales (solo lectura, Ton_m_C)."""
         return sin_cache(await en_com_sap(lambda c: sf.shell_forces(c.model, body.model_dump())))
+
+    @app.post(f"{PREFIJO}/foundations/shell-joint-forces")
+    async def foundations_shell_joint_forces(body: ShellJointForcesRequest):
+        """Fuerzas de cada elemento de shell en sus nudos (``AreaJointForceShell``), solo lectura, Ton_m_C."""
+        return sin_cache(await en_com_sap(lambda c: sjf.shell_joint_forces(c.model, body.model_dump())))
 
     # --- Resultados en bloque (solo lectura; ver core/results_bulk.py) ---------------
     @app.get(f"{PREFIJO}/results/reactions")
