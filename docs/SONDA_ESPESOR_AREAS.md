@@ -24,3 +24,9 @@ py -3.12 scripts\sonda_espesor_areas.py --esperado 0.4
 
 Devuelva el `.json` y anote: la firma de `GetShell_1` que respondió (E2), el veredicto de E3 y E4 y, si hay avisos de espesor en E6, cuáles.
 Si E3 es FAIL, las salidas de `GetShell_1` no siguen el orden supuesto y hay que ajustar `_leer_espesor_seccion`.
+
+## Resultado de la primera ejecución («FUNDACIONES STACKER v00.sdb», SAP2000)
+
+E1, E3, E4 y Z: PASS; E2 informativa: `GetShell_1` responde con la firma corta (y la larga), `GetShell` solo con la corta; E6 inconclusa (modelo sin analizar).
+E5 salió FAIL porque se pasó `--esperado 0.4` para un modelo cuya sección es «Losa e=3000» (3,0 m, que es lo que lee el puente): era un valor
+esperado equivocado, no un fallo de la lectura. Pendiente: repetir con el modelo analizado (E6) y, si hay, con una sección layered.
