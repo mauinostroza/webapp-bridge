@@ -168,6 +168,12 @@ class _Areas(_Lista):
         self.m.log.append(("AreaObj.GetElm", area))
         return (len(self.m.malla[area]), tuple(e for e, _ in self.m.malla[area]), 0)
 
+    def GetProperty(self, area, *a):
+        self.m.log.append(("AreaObj.GetProperty", area))
+        if area in self.m.sin_propiedad:
+            raise RuntimeError("sin propiedad")
+        return (self.m.secciones.get(area, "S20"), 0)
+
     def GetTransformationMatrix(self, area, *a):
         self.m.log.append(("AreaObj.GetTransformationMatrix", area))
         if self.m.matriz_objeto is None:
@@ -194,6 +200,30 @@ class _AreaElm:
         if self.m.matriz_elemento is None:
             raise AttributeError("sin GetTransformationMatrix")
         return (tuple(self.m.matriz_elemento(elm)), 0)
+
+
+class _PropArea:
+    """``PropArea`` con ``GetShell_1`` (con ``IncludeDrillingDOF``)."""
+
+    def __init__(self, m):
+        self.m = m
+
+    def GetShell_1(self, nombre, *a):  # noqa: N802
+        self.m.log.append(("PropArea.GetShell_1", nombre))
+        tipo, esp, flex = self.m.props[nombre]
+        return (tipo, False, "CONC", 0.0, esp, flex, -1, "", "", 0)
+
+
+class _PropAreaAntigua:
+    """``PropArea`` solo con ``GetShell`` (sin ``IncludeDrillingDOF``)."""
+
+    def __init__(self, m):
+        self.m = m
+
+    def GetShell(self, nombre, *a):  # noqa: N802
+        self.m.log.append(("PropArea.GetShell", nombre))
+        tipo, esp, flex = self.m.props[nombre]
+        return (tipo, "CONC", 0.0, esp, flex, -1, "", "", 0)
 
 
 class _PuntosElm:
@@ -243,6 +273,10 @@ class FakeShell:
         self.mostrar_obedece = kw.pop("mostrar_obedece", False)
         self.mostrar_no_capturable = kw.pop("mostrar_no_capturable", False)
         self.sin_casos_corridos = kw.pop("sin_casos_corridos", False)
+        self.secciones = kw.pop("secciones", {"A1": "S20", "A2": "S30"})
+        self.props = kw.pop("props", {"S20": (2, 0.2, 0.2), "S30": (2, 0.3, 0.3)})  # sección → (tipo, espesor, flexión)
+        self.sin_propiedad = kw.pop("sin_propiedad", set())
+        self.getshell_antiguo = kw.pop("getshell_antiguo", False)
         self.mostrado_c, self.mostrado_k = ["DEAD"], ["U1"]
         self.mostrado = set(self.mostrado_c) | set(self.mostrado_k)
         self.sel_c, self.sel_k = {"DEAD"}, {"U1"}  # la selección de salida del usuario
@@ -256,6 +290,7 @@ class FakeShell:
         self.RespCombo = _Lista(COMBOS)
         self.AreaObj = _Areas(self)
         self.AreaElm = _AreaElm(self)
+        self.PropArea = _PropAreaAntigua(self) if self.getshell_antiguo else _PropArea(self)
         self.PointElm = _PuntosElm(self)
         self.PointObj = _PuntosObj(self)
         self.SelectObj = _Prohibido(self, "SelectObj")
@@ -329,7 +364,7 @@ def restaurado(model):
 def test_via_tabla_contrato_y_restauracion():
     m = FakeShell()
     r = leer(m)
-    assert set(r) == {
+    claves = {
         "ok",
         "units",
         "model_locked",
@@ -342,6 +377,7 @@ def test_via_tabla_contrato_y_restauracion():
         "columns",
         "rows",
     }
+    assert claves <= set(r) <= claves | {"thickness", "thickness_bending", "sections"}  # el espesor es opcional
     assert r["ok"] is True and r["units"] == {"force": "tonf", "length": "m"}
     assert r["model_locked"] is True and r["truncated"] is False
     assert r["columns"] == ["elm", "node", "case", "step", *COMPS]
@@ -774,7 +810,9 @@ def test_ruta_responde_200_sin_cache_y_claves_del_contrato(rutas_viewer):
     r = c.post(f"{PREFIJO}/foundations/shell-forces", json={"areas": ["A2"], "cases": ["DEAD"]})
     assert r.status_code == 200, r.text
     assert r.headers["Cache-Control"] == "no-store"
-    assert set(r.json()) == set(contrato["routes"][clave]["keys"])
+    claves = set(contrato["routes"][clave]["keys"])
+    # las claves del contrato siempre están; los campos de espesor son opcionales (solo con datos)
+    assert claves <= set(r.json()) <= claves | {"thickness", "thickness_bending", "sections"}
 
 
 def test_ruta_422_con_campo_extra_y_componente_invalido(rutas_viewer):
@@ -876,3 +914,76 @@ def test_modelo_de_la_sonda_api_y_tabla_devuelven_los_mismos_valores():
     assert not any("respaldo" in w for w in con_api["warnings"])
     # L3: la normal invertida se refleja en el orden de los nudos, que se conserva tal como lo da SAP2000
     assert con_api["elements"]["2001"]["nodes"] == ["2001", "2014", "2015", "2002"]
+
+
+# --- espesor de cada área (campos opcionales) ---------------------------------------------------------------------------------
+
+
+def _llamadas(m, nombre):
+    return [c for c in m.log if isinstance(c, tuple) and c[0] == nombre]
+
+
+def test_espesor_y_seccion_de_cada_area_y_sin_flexion_si_no_difiere():
+    m = FakeShell()
+    r = leer(m)
+    assert r["thickness"] == {"A1": 0.2, "A2": 0.3}
+    assert r["sections"] == {"A1": "S20", "A2": "S30"}
+    assert "thickness_bending" not in r  # solo donde difiere de la membrana
+    assert not any("espesor" in w for w in r["warnings"])
+
+
+def test_thickness_bending_solo_donde_difiere():
+    r = leer(FakeShell(props={"S20": (2, 0.2, 0.15), "S30": (2, 0.3, 0.3)}))
+    assert r["thickness_bending"] == {"A1": 0.15} and r["thickness"] == {"A1": 0.2, "A2": 0.3}
+
+
+def test_solo_las_areas_pedidas():
+    r = leer(FakeShell(), areas=["A2"])
+    assert r["thickness"] == {"A2": 0.3} and r["sections"] == {"A2": "S30"}
+
+
+def test_cada_seccion_se_lee_una_sola_vez_por_llamada():
+    m = FakeShell(secciones={"A1": "S20", "A2": "S20"})
+    r = leer(m)
+    assert r["thickness"] == {"A1": 0.2, "A2": 0.2}
+    assert len(_llamadas(m, "PropArea.GetShell_1")) == 1  # una sección, una lectura
+    assert len(_llamadas(m, "AreaObj.GetProperty")) == 2  # una por área
+    leer(m)  # otra llamada a la ruta: se vuelve a leer (no hay caché entre llamadas)
+    assert len(_llamadas(m, "PropArea.GetShell_1")) == 2
+
+
+def test_area_layered_se_omite_con_aviso_y_la_ruta_no_falla():
+    m = FakeShell(props={"S20": (6, 0.2, 0.2), "S30": (2, 0.3, 0.3)})
+    r = leer(m)
+    assert r["thickness"] == {"A2": 0.3} and r["sections"] == {"A1": "S20", "A2": "S30"}
+    assert any("layered" in w and "A1" in w for w in r["warnings"])
+    assert r["rows"]
+
+
+def test_error_de_lectura_de_la_seccion_del_area_omite_el_area_con_aviso():
+    r = leer(FakeShell(sin_propiedad={"A1"}))
+    assert r["thickness"] == {"A2": 0.3} and r["sections"] == {"A2": "S30"}
+    assert any("A1" in w and "AreaObj.GetProperty" in w for w in r["warnings"])
+
+
+def test_espesor_no_positivo_se_omite_con_aviso():
+    r = leer(FakeShell(props={"S20": (2, 0.0, 0.0), "S30": (2, 0.3, 0.3)}))
+    assert r["thickness"] == {"A2": 0.3} and any("espesor positivo" in w for w in r["warnings"])
+
+
+def test_getshell_1_ausente_usa_getshell():
+    m = FakeShell(getshell_antiguo=True)
+    r = leer(m)
+    assert r["thickness"] == {"A1": 0.2, "A2": 0.3} and len(_llamadas(m, "PropArea.GetShell")) == 2
+
+
+def test_sin_ningun_espesor_las_claves_opcionales_no_aparecen():
+    r = leer(FakeShell(sin_propiedad={"A1", "A2"}))
+    assert not {"thickness", "thickness_bending", "sections"} & set(r)
+    assert r["rows"] and r["elements"]
+
+
+def test_el_espesor_no_modifica_el_modelo_ni_la_restauracion():
+    m = FakeShell()
+    leer(m)
+    assert m.prohibidas == [] and restaurado(m)

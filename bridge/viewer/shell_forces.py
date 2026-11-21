@@ -38,6 +38,7 @@ from bridge.actions import (
     _response_arrays,
     _with_ton_m_c,
     load_cases_and_combos,
+    split_return,
     model_is_locked,
 )
 from bridge.foundations_shells import MSG_CORRIDO_SIN_RESULTADOS, MSG_MODELO_NO_CORRIDO
@@ -820,6 +821,113 @@ def _calcular_ejes(
 
 
 # --------------------------------------------------------------------------------------------------------------------
+# Espesor de cada área (campos opcionales de la respuesta)
+# --------------------------------------------------------------------------------------------------------------------
+
+_TIPO_LAYERED = 6  # eShellType: 1 Shell-Thin, 2 Shell-Thick, 3 Membrane, 4 Plate-Thin, 5 Plate-Thick, 6 Layered
+
+
+class _EspesorError(RuntimeError):
+    """La sección no tiene un espesor único legible (layered, sólido axisimétrico o error de lectura)."""
+
+
+def _leer_espesor_seccion(model: Any, seccion: str) -> tuple[float, float]:
+    """(Thickness, Bending) en metros (se llama con las unidades en Ton_m_C) de ``PropArea.GetShell_1`` o ``GetShell``.
+
+    Orden de las salidas: ``ShellType, [IncludeDrillingDOF,] MatProp, MatAngle, Thickness, Bending, Color, Notes, GUID``; los tres
+    únicos reales son ``MatAngle``, ``Thickness`` y ``Bending``, así que se leen por tipo y valen para las dos firmas.
+    """
+    ultimo: Exception | None = None
+    for nombre in ("GetShell_1", "GetShell"):
+        metodo = getattr(model.PropArea, nombre, None)
+        if metodo is None:
+            continue
+        for args in ((seccion,), (seccion, 0, False, "", 0.0, 0.0, 0.0, -1, "", "")):
+            try:
+                raw = metodo(*args)
+                codigo, salidas = split_return(raw)
+            except Exception as exc:  # noqa: BLE001
+                ultimo = exc
+                continue
+            if codigo != 0:
+                ultimo = RuntimeError(f"{nombre}({seccion!r}) devolvió el código {codigo}")
+                continue
+            tipo = next((v for v in salidas if isinstance(v, int) and not isinstance(v, bool)), None)
+            if tipo == _TIPO_LAYERED:
+                raise _EspesorError(f"la sección '{seccion}' es de tipo layered/no lineal: no tiene un espesor único")
+            reales = [v for v in salidas if isinstance(v, float)]
+            if len(reales) < 3:
+                ultimo = RuntimeError(f"{nombre}({seccion!r}) no devolvió espesor")
+                continue
+            espesor, flexion = reales[1], reales[2]
+            if not (math.isfinite(espesor) and espesor > 0):
+                raise _EspesorError(f"la sección '{seccion}' no tiene un espesor positivo ({espesor!r})")
+            return espesor, flexion if math.isfinite(flexion) and flexion > 0 else espesor
+    raise _EspesorError(f"no se pudo leer el espesor de la sección '{seccion}': {ultimo or 'sin PropArea.GetShell'}")
+
+
+def _nombre_seccion(model: Any, area: str) -> str:
+    for args in ((area,), (area, "")):
+        try:
+            codigo, salidas = split_return(model.AreaObj.GetProperty(*args))
+        except Exception:  # noqa: BLE001
+            continue
+        nombre = next((v for v in salidas if isinstance(v, str) and v), "")
+        if codigo == 0 and nombre:
+            return nombre
+    raise _EspesorError(f"no se pudo leer la sección del área '{area}' (AreaObj.GetProperty)")
+
+
+def espesores(model: Any, areas: list[str], avisos: list[str]) -> dict[str, dict[str, Any]]:
+    """Espesor de cada área: ``thickness`` (membrana, m), ``thickness_bending`` (solo donde difiere) y ``sections``.
+
+    Solo lectura. ``AreaObj.GetProperty`` se llama una vez por área y ``PropArea.GetShell_1`` (o ``GetShell``) una vez por
+    SECCIÓN en cada llamada a la ruta. Las áreas sin espesor único (layered, sólidos, error de lectura) se omiten de
+    ``thickness`` y ``thickness_bending`` —``sections`` conserva el nombre si se pudo leer— y se avisan en ``warnings``; nunca
+    hacen fallar la ruta.
+    """
+    secciones: dict[str, str] = {}
+    por_seccion: dict[str, tuple[float, float] | str] = {}  # (espesor, flexión) o el motivo del fallo
+    espesor: dict[str, float] = {}
+    flexion: dict[str, float] = {}
+    sin_espesor: dict[str, str] = {}
+    for area in dict.fromkeys(areas):
+        try:
+            nombre = _nombre_seccion(model, area)
+        except _EspesorError as exc:
+            sin_espesor[area] = str(exc)
+            continue
+        secciones[area] = nombre
+        if nombre not in por_seccion:
+            try:
+                por_seccion[nombre] = _leer_espesor_seccion(model, nombre)
+            except _EspesorError as exc:
+                por_seccion[nombre] = str(exc)
+        dato = por_seccion[nombre]
+        if isinstance(dato, str):
+            sin_espesor[area] = dato
+            continue
+        espesor[area] = dato[0]
+        if abs(dato[1] - dato[0]) > 1e-12:
+            flexion[area] = dato[1]
+    if sin_espesor:
+        motivos = dict.fromkeys(sin_espesor.values())
+        lista = ", ".join(list(sin_espesor)[:10]) + (f" y {len(sin_espesor) - 10} más" if len(sin_espesor) > 10 else "")
+        avisos.append(
+            f"{len(sin_espesor)} áreas sin espesor único se omitieron de 'thickness' ({lista}): " + "; ".join(list(motivos)[:3]) + "."
+        )
+    return {"thickness": espesor, "thickness_bending": flexion, "sections": secciones}
+
+
+CAMPOS_ESPESOR = ("thickness", "thickness_bending", "sections")
+
+
+def campos_espesor(datos: dict[str, Any]) -> dict[str, Any]:
+    """Los campos de espesor de ``datos`` que traen algo (opcionales: sin datos no aparecen en la respuesta)."""
+    return {k: datos[k] for k in CAMPOS_ESPESOR if datos.get(k)}
+
+
+# --------------------------------------------------------------------------------------------------------------------
 # Huella de la malla
 # --------------------------------------------------------------------------------------------------------------------
 
@@ -1003,6 +1111,7 @@ def _leer(
         "rows": rows,
         "truncated": truncado,
         "mesh_hash": huella,
+        **espesores(model, list(dict.fromkeys(d["area"] for d in elementos.values())), avisos),
     }
 
 
@@ -1038,4 +1147,5 @@ def shell_forces(model: Any, body: dict[str, Any]) -> dict[str, Any]:
         "axes": datos["axes"],
         "columns": ["elm", "node", "case", "step", *componentes],
         "rows": datos["rows"],
+        **campos_espesor(datos),  # opcionales: solo si hay datos
     }

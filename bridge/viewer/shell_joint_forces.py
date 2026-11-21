@@ -28,6 +28,7 @@ from bridge.viewer.shell_forces import (
     _ORDEN_API_NUDOS,
     COMPONENTES_NUDOS,
     _leer,
+    campos_espesor,
     _validar_areas,
     _validar_casos,
 )
@@ -89,4 +90,5 @@ def shell_joint_forces(model: Any, body: dict[str, Any]) -> dict[str, Any]:
         "axes": datos["axes"],
         "columns": ["elm", "node", "case", "step", *componentes],
         "rows": datos["rows"],
+        **campos_espesor(datos),  # opcionales: solo si hay datos
     }
