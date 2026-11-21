@@ -98,10 +98,11 @@ def _identidad(_e):
 def test_contrato_y_restauracion():
     m = FakeJoint(matriz_elemento=_identidad)
     r = leer(m)
-    assert set(r) == {
+    claves = {
         "ok", "units", "model_locked", "truncated", "warnings", "mesh_hash", "forces_frame",
         "elements", "nodes", "axes", "columns", "rows",
-    }  # fmt: skip
+    }
+    assert claves <= set(r) <= claves | {"thickness", "thickness_bending", "sections"}  # el espesor es opcional  # fmt: skip
     assert r["ok"] is True and r["units"] == {"force": "tonf", "length": "m"} and r["model_locked"] is True
     assert r["forces_frame"] == "global"
     assert not [c for c in m.log if isinstance(c, tuple) and "TransformationMatrix" in c[0]]
@@ -297,7 +298,9 @@ def test_ruta_200_sin_cache_y_claves_del_contrato(rutas_viewer):
     r = c.post(f"{PREFIJO}/foundations/shell-joint-forces", json={"areas": ["A2"], "cases": ["DEAD"]})
     assert r.status_code == 200, r.text
     assert r.headers["Cache-Control"] == "no-store"
-    assert set(r.json()) == set(contrato["routes"][clave]["keys"])
+    claves = set(contrato["routes"][clave]["keys"])
+    # las claves del contrato siempre están; los campos de espesor son opcionales (solo con datos)
+    assert claves <= set(r.json()) <= claves | {"thickness", "thickness_bending", "sections"}
 
 
 def test_ruta_422_campo_extra_frame_invalido_y_components(rutas_viewer):
@@ -312,3 +315,17 @@ def test_ruta_mapea_modelo_no_corrido(rutas_viewer):
     c.puente._connector.model.locked = False
     r = c.post(f"{PREFIJO}/foundations/shell-joint-forces", json={})
     assert r.status_code == 409 and r.json()["detail"]["code"] == "model_not_run"
+
+
+# --- espesor de cada área (campos opcionales, igual que shell-forces) ---------------------------------------------------------
+
+
+def test_espesor_y_secciones_tambien_en_shell_joint_forces():
+    r = leer(FakeJoint(props={"S20": (2, 0.2, 0.15), "S30": (2, 0.3, 0.3)}))
+    assert r["thickness"] == {"A1": 0.2, "A2": 0.3} and r["thickness_bending"] == {"A1": 0.15}
+    assert r["sections"] == {"A1": "S20", "A2": "S30"}
+
+
+def test_area_layered_se_omite_con_aviso_sin_fallar_en_shell_joint_forces():
+    r = leer(FakeJoint(props={"S20": (6, 0.2, 0.2), "S30": (2, 0.3, 0.3)}))
+    assert r["thickness"] == {"A2": 0.3} and any("layered" in w for w in r["warnings"]) and r["rows"]
